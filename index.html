@@ -9,13 +9,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
-    --teal:#1F5C46; --orange:#B8792E; --red:#9B3A32; --gold:#C79A3D; --grey:#7C8B84;
-    --bg:#EAF0EE; --surface:#FFFFFF; --ink:#16211C; --sub:#55655E; --faint:#86948D;
-    --line:#D7DFDA; --line2:#EAF0EE; --chip:#F1F6F3; --border:#C9D3CD;
+    --teal:#4FB08A; --orange:#E0994D; --red:#E2685A; --gold:#E0B563; --grey:#9AA79E;
+    --bg:#0D1210; --surface:#161C19; --ink:#E9EEEA; --sub:#B7C1BB; --faint:#8A968F;
+    --line:#2A322D; --line2:#0D1210; --chip:#1E2521; --border:#3A433C;
   }
   *{ box-sizing:border-box; }
+  html{ background:#0D1210; }
   body{
-    margin:0; background:var(--bg); color:var(--ink);
+    margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
     font-family:'IBM Plex Sans','Inter',system-ui,-apple-system,sans-serif;
   }
   .serif{ font-family:Georgia,'Times New Roman',serif; }
@@ -34,9 +35,9 @@
   button{ font-family:inherit; cursor:pointer; }
   .btn-ghost{
     display:flex; align-items:center; gap:8px; font-size:14px; padding:8px 12px;
-    border-radius:8px; border:1px solid var(--border); background:transparent; color:#3A473F;
+    border-radius:8px; border:1px solid var(--border); background:transparent; color:#DCE3DE;
   }
-  .btn-ghost:hover{ background:#E5EBE7; }
+  .btn-ghost:hover{ background:#232B26; }
   .btn-primary{
     display:inline-block; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:500;
     background:var(--teal); color:#fff; border:none;
@@ -57,9 +58,9 @@
   .file-found-row .tag{
     font-size:11px; padding:2px 8px; border-radius:99px; font-weight:600; white-space:nowrap;
   }
-  .tag.realisasi{ background:#E2EEE7; color:var(--teal); }
-  .tag.ikpa{ background:#F3E7D3; color:var(--orange); }
-  .tag.unknown{ background:#F2E1DE; color:var(--red); }
+  .tag.realisasi{ background:#17251F; color:var(--teal); }
+  .tag.ikpa{ background:#2A2116; color:var(--orange); }
+  .tag.unknown{ background:#2A1D1B; color:var(--red); }
   .folder-actions{ display:flex; gap:10px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
   .btn-primary:disabled{ opacity:.45; cursor:not-allowed; }
   #procStatus{ margin-top:14px; font-size:13px; }
@@ -73,7 +74,7 @@
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:44px 24px; transition:.15s;
   }
-  #dropzone.drag, #ikpaDropzone.drag{ border-color:var(--teal); background:#E2EEE7; }
+  #dropzone.drag, #ikpaDropzone.drag{ border-color:var(--teal); background:#17251F; }
   #dropzone svg, #ikpaDropzone svg{ opacity:.85; }
   #dropzone .title, #ikpaDropzone .title{ margin-top:14px; font-size:15px; font-weight:600; }
   #dropzone .sub, #ikpaDropzone .sub{ margin-top:4px; font-size:13px; color:var(--sub); }
@@ -86,7 +87,7 @@
   .tabs{ display:flex; gap:4px; flex-wrap:wrap; }
   .tab{
     padding:6px 12px; font-size:14px; border-radius:8px; border:1px solid var(--border);
-    background:transparent; color:#3A473F;
+    background:transparent; color:#DCE3DE;
   }
   .tab.active{ background:var(--teal); color:#fff; border-color:var(--teal); }
 
@@ -96,7 +97,7 @@
   .kpi .label{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub); margin-bottom:4px; }
   .kpi .value{ font-size:22px; font-weight:600; }
   .kpi .detail{ font-size:12px; color:var(--faint); margin-top:4px; }
-  .kpi .bar{ width:100%; height:6px; border-radius:99px; background:#E5EBE7; margin-top:8px; overflow:hidden; }
+  .kpi .bar{ width:100%; height:6px; border-radius:99px; background:#232B26; margin-top:8px; overflow:hidden; }
   .kpi .bar > div{ height:100%; border-radius:99px; }
 
   .grid2{ display:grid; grid-template-columns:1fr; gap:24px; margin-bottom:28px; }
@@ -108,15 +109,15 @@
   select{ padding:5px 8px; border-radius:6px; border:1px solid var(--border); background:var(--chip); }
   .chip-btn{
     display:flex; align-items:center; gap:4px; font-size:12px; padding:5px 10px; border-radius:6px;
-    border:1px solid var(--border); background:transparent; color:#3A473F;
+    border:1px solid var(--border); background:transparent; color:#DCE3DE;
   }
   .search-box{
     display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:8px; border:1px solid var(--border);
   }
   .search-box input{ border:none; outline:none; width:160px; background:transparent; }
 
-  .highlight{ background:var(--surface); border-radius:10px; padding:20px; margin-bottom:28px; border:1px solid rgba(184,121,46,.25); }
-  .highlight .badge{ font-size:12px; padding:4px 10px; border-radius:99px; background:#F3E7D3; color:var(--orange); }
+  .highlight{ background:var(--surface); border-radius:10px; padding:20px; margin-bottom:28px; border:1px solid rgba(224,153,77,.25); }
+  .highlight .badge{ font-size:12px; padding:4px 10px; border-radius:99px; background:#2A2116; color:var(--orange); }
   .highlight .note{ font-size:13px; color:var(--sub); margin:4px 0 20px; }
   .mini-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:24px; }
   @media(min-width:768px){ .mini-grid{ grid-template-columns:repeat(4,1fr); } }
@@ -134,10 +135,10 @@
   .chart-card-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
   .copy-chart-btn{
     display:flex; align-items:center; gap:5px; font-size:11.5px; padding:5px 10px; border-radius:6px;
-    border:1px solid var(--border); background:var(--chip); color:#3A473F; transition:.15s;
+    border:1px solid var(--border); background:var(--chip); color:#DCE3DE; transition:.15s;
   }
-  .copy-chart-btn:hover{ background:#E5EBE7; border-color:#AEBBB3; }
-  .copy-chart-btn.copied{ background:#E2EEE7; border-color:var(--teal); color:var(--teal); }
+  .copy-chart-btn:hover{ background:#232B26; border-color:#9AA79E; }
+  .copy-chart-btn.copied{ background:#17251F; border-color:var(--teal); color:var(--teal); }
   .chart-wrap{ position:relative; }
 
   .icon{ display:inline-flex; vertical-align:-3px; }
@@ -162,7 +163,7 @@
 
   <div id="uploadGrid">
     <div id="autoLoadStatus" class="folder-card">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#1F5C46" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
       <div class="title" id="autoLoadTitle">Memuat data terbaru…</div>
       <div class="sub" id="autoLoadSub">Mengambil realisasi.pdf dan ikpa.pdf.</div>
     </div>
@@ -179,7 +180,7 @@
     <div class="highlight" id="highlightCard" style="display:none;">
       <div class="card-head" style="margin-bottom:2px;">
         <div class="card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8792E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0994D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
           Sorotan: <span id="highlightName"></span>
         </div>
         <div class="badge" id="highlightRank"></div>
@@ -202,7 +203,7 @@
       <div class="card-head">
         <div class="card-title">Rincian per <span id="tableEntityLabel"></span> — <span id="tableGroupLabel"></span></div>
         <div class="search-box">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#86948D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="text" id="searchInput" placeholder="Cari nama…" />
         </div>
       </div>
@@ -216,13 +217,13 @@
       </div>
     </div>
 
-    <div class="highlight" id="ikpaCard" style="display:none; border-color: rgba(31,92,70,.25);">
+    <div class="highlight" id="ikpaCard" style="display:none; border-color: rgba(79,176,138,.25);">
       <div class="card-head" style="margin-bottom:2px;">
         <div class="card-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F5C46" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
           Sorotan Nilai IKPA — <span id="ikpaName"></span>
         </div>
-        <div class="badge" id="ikpaRank" style="background:#E2EEE7; color:#1F5C46;"></div>
+        <div class="badge" id="ikpaRank" style="background:#17251F; color:#4FB08A;"></div>
       </div>
       <p class="note" id="ikpaNote"></p>
       <div class="mini-grid" id="ikpaMini"></div>
@@ -243,7 +244,7 @@
       <div class="card-head">
         <div class="card-title">Rincian Nilai IKPA per Satker</div>
         <div class="search-box">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#86948D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="text" id="ikpaSearchInput" placeholder="Cari nama…" />
         </div>
       </div>
@@ -270,7 +271,7 @@ const IKPA_PERIODE_DEFAULT = "-";
 let IKPA_PERIODE = IKPA_PERIODE_DEFAULT;
 
 /* ---------- palette & helpers ---------- */
-const TEAL="#1F5C46", ORANGE="#B8792E", RED="#9B3A32", GOLD="#C79A3D", GREY_C="#7C8B84", GREY_LINE="#C9D3CD";
+const TEAL="#4FB08A", ORANGE="#E0994D", RED="#E2685A", GOLD="#E0B563", GREY_C="#9AA79E", GREY_LINE="#3A433C";
 
 /* ---------- Chart.js global setup: nicer defaults, white-bg for copy, datalabels ---------- */
 if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
@@ -280,13 +281,13 @@ Chart.register({
     const {ctx, width, height} = chart;
     ctx.save();
     ctx.globalCompositeOperation = "destination-over";
-    ctx.fillStyle = "#FFFFFF";
+    ctx.fillStyle = "#161C19";
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
   }
 });
 Chart.defaults.font.family = "'IBM Plex Sans','Inter',system-ui,sans-serif";
-Chart.defaults.plugins.tooltip.backgroundColor = "#16221D";
+Chart.defaults.plugins.tooltip.backgroundColor = "#232B26";
 Chart.defaults.plugins.tooltip.padding = 10;
 Chart.defaults.plugins.tooltip.cornerRadius = 8;
 Chart.defaults.plugins.tooltip.titleFont = {size: 12, weight: "600"};
@@ -560,11 +561,44 @@ async function parseIkpaPdf(file){
   let allX=[]; pages.forEach(items=>items.forEach(it=>allX.push(it.x)));
   const centers = clusterColumns(allX, 10);
   const lcol = (it)=>assignCol(it.x, centers);
+  const entityStartX = centers[1] ? (centers[0]+centers[1])/2 : 60;
+
+  // Locate columns by matching header text (robust to small layout shifts that can
+  // merge/split neighboring columns and throw off fixed-index positions).
+  const firstPageLines = buildLines(pages[0]);
+  const firstAnchorLineIdx = firstPageLines.findIndex(l=>{
+    const leftText = l.items.filter(it=>it.x<entityStartX).map(it=>it.text).join("").trim();
+    return /^\d+$/.test(leftText);
+  });
+  const headerLines = firstAnchorLineIdx>0 ? firstPageLines.slice(0, firstAnchorLineIdx) : [];
+  const headerCells={};
+  headerLines.forEach(l=>l.items.forEach(it=>{
+    const c=lcol(it);
+    if(!headerCells[c]) headerCells[c]=[];
+    headerCells[c].push(it.text);
+  }));
+  const headerRow = centers.map((_,ci)=> headerCells[ci] ? headerCells[ci].join(" ").replace(/\s+/g," ").trim().toLowerCase() : "");
+
+  const nilaiAspekCols = headerRow.map((h,i)=>h===("nilai aspek")?i:-1).filter(i=>i>=0);
+  const nilaiTotalCol = headerRow.findIndex(h=>h==="nilai total");
+  const konversiCol = headerRow.findIndex(h=>h==="konversi bobot");
+  const akhirMatches = headerRow.map((h,i)=>({h,i})).filter(o=>/nilai akhir/.test(o.h));
+  // The "Nilai Akhir (Nilai Total/Konversi Bobot)" header is the widest label in the table,
+  // so its left-aligned text often lands one column left of where its actual value sits.
+  const nilaiAkhirCol = akhirMatches.length ? akhirMatches[akhirMatches.length-1].i + 1 : -1;
+
+  // Fallback to the previously-known fixed layout only if header-text detection fails entirely.
+  const [perencCol, pelaksCol, hasilCol] = nilaiAspekCols.length>=3
+    ? nilaiAspekCols
+    : [11, 20, 22];
+  const totalCol = nilaiTotalCol>=0 ? nilaiTotalCol : 23;
+  const konvCol = konversiCol>=0 ? konversiCol : 24;
+  const akhirCol = nilaiAkhirCol>=0 ? nilaiAkhirCol : (centers.length-1);
 
   const records=[];
   pages.forEach(items=>{
     const lines = buildLines(items);
-    const blocks = findAnchorsAndBlocks(lines, centers[1] ? (centers[0]+centers[1])/2 : 60);
+    const blocks = findAnchorsAndBlocks(lines, entityStartX);
     blocks.forEach(({no, blockLines})=>{
       if(/grand.?total/i.test(no)) return;
       const cellsByCol={};
@@ -577,12 +611,12 @@ async function parseIkpaPdf(file){
       records.push({
         no: parseInt(no,10)||0,
         uraian: row[5] || "",
-        perencanaan: num2(row[11]),
-        pelaksanaan: num2(row[20]),
-        hasil: num2(row[22]),
-        nilaiTotal: num2(row[23]),
-        konversiBobot: num2(row[24]),
-        nilaiAkhir: num2(row[29]),
+        perencanaan: num2(row[perencCol]),
+        pelaksanaan: num2(row[pelaksCol]),
+        hasil: num2(row[hasilCol]),
+        nilaiTotal: num2(row[totalCol]),
+        konversiBobot: num2(row[konvCol]),
+        nilaiAkhir: num2(row[akhirCol]),
       });
     });
   });
@@ -767,18 +801,18 @@ function renderHighlight(table){
         {
           label:"Pagu",
           data: data.map(d=>d.Pagu),
-          backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#E5EBE7", "#C9D3CD"),
+          backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#232B26", "#3A433C"),
           borderRadius:8, borderSkipped:false, barPercentage:0.62, categoryPercentage:0.8,
           datalabels:{ display:false }
         },
         {
           label:"Realisasi",
           data: data.map(d=>d.Realisasi),
-          backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#D2A468", ORANGE),
+          backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#E0B563", ORANGE),
           borderRadius:8, borderSkipped:false, barPercentage:0.62, categoryPercentage:0.8,
           datalabels:{
             display:true, anchor:"end", align:"end", offset:4,
-            color:"#7C4F1E", font:{size:10.5, weight:"600"},
+            color:"#F2C08C", font:{size:10.5, weight:"600"},
             formatter:(v)=> "Rp "+formatCompact(v)
           }
         }
@@ -790,12 +824,12 @@ function renderHighlight(table){
       layout:{ padding:{right:56} },
       animation:{ duration:700, easing:"easeOutQuart" },
       plugins:{
-        legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#3A473F" } },
+        legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#DCE3DE" } },
         tooltip:{ callbacks:{ label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}` } }
       },
       scales:{
-        x:{ ticks:{ font:{size:11}, color:"#55655E", callback:(v)=>formatCompact(v) }, grid:{ color:"#EAF0EE" }, border:{display:false} },
-        y:{ ticks:{ font:{size:11.5}, color:"#3A473F" }, grid:{ display:false }, border:{display:false} }
+        x:{ ticks:{ font:{size:11}, color:"#B7C1BB", callback:(v)=>formatCompact(v) }, grid:{ color:"#0D1210" }, border:{display:false} },
+        y:{ ticks:{ font:{size:11.5}, color:"#DCE3DE" }, grid:{ display:false }, border:{display:false} }
       }
     }
   });
@@ -867,8 +901,8 @@ function renderIkpaHighlight(){
         tooltip:{ callbacks:{ label:(item)=> item.parsed.x.toFixed(2) } }
       },
       scales:{
-        x:{ min:0, max:100, ticks:{ font:{size:11}, color:"#55655E" }, grid:{ color:"#EAF0EE" }, border:{display:false} },
-        y:{ ticks:{ font:{size:11.5}, color:"#3A473F" }, grid:{ display:false }, border:{display:false} }
+        x:{ min:0, max:100, ticks:{ font:{size:11}, color:"#B7C1BB" }, grid:{ color:"#0D1210" }, border:{display:false} },
+        y:{ ticks:{ font:{size:11.5}, color:"#DCE3DE" }, grid:{ display:false }, border:{display:false} }
       }
     }
   });
@@ -900,7 +934,7 @@ function renderIkpaTable(){
   }
   body.innerHTML = rows.map(r=>`
     <tr>
-      <td style="color:#86948D">${r.no}</td>
+      <td style="color:#8A968F">${r.no}</td>
       <td>${r.uraian}</td>
       <td class="num">${r.perencanaan.toFixed(2)}</td>
       <td class="num">${r.pelaksanaan.toFixed(2)}</td>
@@ -926,7 +960,7 @@ function renderTable(table, group){
   }
   body.innerHTML = rows.map(r=>`
     <tr>
-      <td style="color:#86948D">${r.rank ?? ""}</td>
+      <td style="color:#8A968F">${r.rank ?? ""}</td>
       <td>${r.entity}</td>
       <td class="num">${formatCompact(r.m.pagu)}</td>
       <td class="num">${formatCompact(r.m.real)}</td>
