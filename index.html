@@ -190,10 +190,6 @@
       <div id="highlightChartWrap">
         <div class="chart-card-head">
           <span style="font-size:12px; font-weight:500; color:var(--sub);">Pagu vs Realisasi per jenis belanja</span>
-          <button class="copy-chart-btn" id="copyHighlightChartBtn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            <span class="copy-chart-label">Salin gambar</span>
-          </button>
         </div>
         <div class="chart-wrap"><canvas id="highlightChart"></canvas></div>
       </div>
@@ -230,10 +226,6 @@
       <div id="ikpaBreakdownWrap">
         <div class="chart-card-head">
           <span style="font-size:12px; font-weight:500; color:var(--sub);">Rincian komponen indikator</span>
-          <button class="copy-chart-btn" id="copyIkpaChartBtn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            <span class="copy-chart-label">Salin gambar</span>
-          </button>
         </div>
         <div class="chart-wrap"><canvas id="ikpaChart"></canvas></div>
       </div>
@@ -306,36 +298,6 @@ function hexToRgba(hex, alpha){
   const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-
-/* ---------- copy chart as image ---------- */
-async function copyChartImage(canvasId, btnEl){
-  const canvas = document.getElementById(canvasId);
-  const labelEl = btnEl.querySelector(".copy-chart-label");
-  const originalLabel = labelEl.textContent;
-  try{
-    const blob = await new Promise((resolve,reject)=> canvas.toBlob(b=> b?resolve(b):reject(new Error("toBlob failed")), "image/png"));
-    if(navigator.clipboard && window.ClipboardItem){
-      await navigator.clipboard.write([ new ClipboardItem({ "image/png": blob }) ]);
-      labelEl.textContent = "Tersalin!";
-    } else {
-      throw new Error("Clipboard API tidak tersedia");
-    }
-  }catch(err){
-    // fallback: download the image instead
-    try{
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url; a.download = canvasId + ".png"; a.click();
-      labelEl.textContent = "Diunduh";
-    }catch(err2){
-      labelEl.textContent = "Gagal";
-    }
-  }
-  btnEl.classList.add("copied");
-  setTimeout(()=>{ labelEl.textContent = originalLabel; btnEl.classList.remove("copied"); }, 1800);
-}
-document.getElementById("copyHighlightChartBtn").addEventListener("click", (e)=> copyChartImage("highlightChart", e.currentTarget));
-document.getElementById("copyIkpaChartBtn").addEventListener("click", (e)=> copyChartImage("ikpaChart", e.currentTarget));
 
 function formatCompact(n){
   if(n===undefined||n===null||Number.isNaN(n)) return "-";
@@ -550,7 +512,7 @@ async function parseRealisasiPdf(file){
 
   if(rows.length===0) throw new Error("Tidak ada baris satker yang berhasil dibaca dari PDF ini.");
   const groupNames = REALISASI_CATS.slice(0, Object.keys(rows[0].groups).length);
-  return { entityLabel:"Kode | Nama Satker", groupNames, totalName:"Total", rows, grandTotal, title:"Realisasi Belanja Satker Per Jenis Belanja", printedDate: extractPrintedDate(pages) };
+  return { entityLabel:"Kode | Nama Satker", groupNames, totalName:"Total", rows, grandTotal, printedDate: extractPrintedDate(pages) };
 }
 
 /* ---------- IKPA parser (validated: 46/46 rows match) ---------- */
@@ -738,8 +700,8 @@ function render(){
   resetBtn.style.display="flex";
 
   if(table){
-    subtitle.textContent = table.title || "Unggah laporan Pagu/Realisasi/Sisa, dasbor akan tersusun otomatis.";
-    document.getElementById("fileInfoText").textContent = `${fileName} · ${table.rows.length} baris data`;
+        subtitle.textContent = "";
+        document.getElementById("fileInfoText").textContent = `${table.rows.length} baris data`;
     document.getElementById("app").querySelector(".toolbar").style.display="flex";
     const group = selectedGroup || table.totalName;
     renderHighlight(table);
