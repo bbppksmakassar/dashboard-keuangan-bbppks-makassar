@@ -159,6 +159,11 @@
   .table-scroll{ overflow-x:auto; }
   .empty-row{ text-align:center; color:var(--faint); padding:24px; }
 
+  tr.rinci-group td{ background:var(--chip); color:var(--gold); font-weight:600; padding-top:12px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+  tr.rinci-akun td{ color:var(--ink); font-weight:600; background:rgba(224,181,99,.05); padding-left:28px; }
+  tr.rinci-item td:first-child{ padding-left:44px; color:var(--sub); }
+  tr.rinci-item td:first-child::before{ content:"›"; margin-right:7px; color:var(--faint); }
+
   .chart-card-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
   .copy-chart-btn{
     display:flex; align-items:center; gap:5px; font-size:11.5px; padding:5px 10px; border-radius:6px;
@@ -418,6 +423,33 @@
                   </tr>
                 </thead>
                 <tbody id="akunTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" id="akunSubTableCard" style="display:none;">
+            <div class="card-head">
+              <div class="card-title">Rincian per Sub Komponen</div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="export-btn" id="exportAkunSubBtn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  CSV
+                </button>
+                <div class="search-box">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
+                </div>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Uraian</th>
+                    <th class="num">Pagu</th><th class="num">Realisasi</th><th class="num">Sisa</th><th class="num">%</th>
+                  </tr>
+                </thead>
+                <tbody id="akunSubTableBody"></tbody>
               </table>
             </div>
           </div>
@@ -968,14 +1000,15 @@ async function parseAkunDetailPdf(file){
       const itemMatch = /^(\d{6})\.$/.exec(firstToken);
       if(/^\d{6}$/.test(firstToken)){
         const desc = uraianText.slice(firstToken.length).trim();
-        rows.push({ kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa, pct });
-        currentAkun = { kode: firstToken, uraian: desc };
+        rows.push({ kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa, pct, groupLabel: currentGroupLabel });
+        currentAkun = rows[rows.length-1];
       } else if(itemMatch){
         const code = itemMatch[1];
         let desc = uraianText.startsWith(firstToken) ? uraianText.slice(firstToken.length).trim()
           : uraianText.replace(/^\d{6}\.\s*/, "").trim();
         subRows.push({
           groupLabel: currentGroupLabel,
+          akunRowIndex: currentAkun ? rows.indexOf(currentAkun) : -1,
           akunKode: currentAkun ? currentAkun.kode : "",
           akunUraian: currentAkun ? currentAkun.uraian : "",
           itemKode: code, uraian: desc, pagu, realisasi: sdIni, sisa, pct,
@@ -1000,7 +1033,7 @@ async function parseAkunDetailPdf(file){
 let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
-let akunData=null, akunSearch="", akunSortDir="desc";
+let akunData=null, akunSearch="", akunSortDir="desc", akunSubSearch="";
 let highlightChartInstance=null, ikpaChartInstance=null;
 let activeView="realisasi";
 
@@ -1387,9 +1420,11 @@ function renderIkpaTable(){
 function renderAkunView(){
   const card=document.getElementById("akunCard");
   const tableCard=document.getElementById("akunTableCard");
-  if(!akunData){ card.style.display="none"; tableCard.style.display="none"; return; }
+  const subTableCard=document.getElementById("akunSubTableCard");
+  if(!akunData){ card.style.display="none"; tableCard.style.display="none"; subTableCard.style.display="none"; return; }
   card.style.display="block";
   tableCard.style.display="block";
+  renderAkunSubView();
 
   const gt = akunData.grandTotal;
   document.getElementById("akunSatkerName").textContent = akunData.satkerNama || akunData.satkerKode || "Satker";
@@ -1441,6 +1476,77 @@ function renderAkunView(){
   lastAkunRows = rows;
 }
 
+function renderAkunSubView(){
+  const subTableCard=document.getElementById("akunSubTableCard");
+  if(!akunData || !akunData.subRows || akunData.subRows.length===0){
+    subTableCard.style.display="none";
+    return;
+  }
+
+  // Tahap awal: tampilkan rincian per sub komponen untuk SATU kegiatan/sub komponen dulu
+  // (yang pertama pada laporan), supaya strukturnya bisa dicek sebelum diperluas ke semua.
+  const groupLabels = [...new Set(akunData.rows.map(r=>r.groupLabel).filter(Boolean))];
+  const groupLabel = groupLabels[0] || "";
+  if(!groupLabel){ subTableCard.style.display="none"; return; }
+  subTableCard.style.display="block";
+
+  const titleEl = document.querySelector("#akunSubTableCard .card-title");
+  if(titleEl) titleEl.textContent = "Rincian per Sub Komponen";
+  let noteEl = document.getElementById("akunSubNote");
+  if(!noteEl){
+    noteEl = document.createElement("p");
+    noteEl.id = "akunSubNote";
+    noteEl.className = "note";
+    titleEl.closest(".card-head").insertAdjacentElement("afterend", noteEl);
+  }
+  noteEl.textContent = groupLabels.length>1
+    ? `Pratinjau 1 sub komponen — "${groupLabel}" (dari ${groupLabels.length} sub komponen terbaca).`
+    : `Sub komponen — "${groupLabel}".`;
+
+  const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
+  const subRowsInGroup = akunData.subRows.filter(r=>r.groupLabel===groupLabel);
+
+  const searchInput=document.getElementById("akunSubSearchInput");
+  searchInput.value = akunSubSearch;
+  searchInput.oninput=(e)=>{ akunSubSearch=e.target.value; renderAkunSubView(); };
+  const q = akunSubSearch.trim().toLowerCase();
+
+  const htmlRows=[]; const exportRows=[];
+  akunRowsInGroup.forEach(akun=>{
+    const items = subRowsInGroup.filter(s=>s.akunKode===akun.kode);
+    const akunMatches = !q || akun.kode.includes(q) || akun.uraian.toLowerCase().includes(q);
+    const itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
+    if(q && !akunMatches && itemsFiltered.length===0) return;
+
+    htmlRows.push(`
+      <tr style="background:rgba(224,181,99,.08); font-weight:600;">
+        <td>${akun.kode} — ${akun.uraian}</td>
+        <td class="num">${formatCompact(akun.pagu)}</td>
+        <td class="num">${formatCompact(akun.realisasi)}</td>
+        <td class="num">${formatCompact(akun.sisa)}</td>
+        <td class="num" style="color:${pctColor(akun.pct)}">${akun.pct.toFixed(2)}%</td>
+      </tr>`);
+    exportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
+
+    itemsFiltered.forEach(it=>{
+      htmlRows.push(`
+        <tr>
+          <td style="padding-left:28px; color:var(--sub);">${it.itemKode}. ${it.uraian}</td>
+          <td class="num">${formatCompact(it.pagu)}</td>
+          <td class="num">${formatCompact(it.realisasi)}</td>
+          <td class="num">${formatCompact(it.sisa)}</td>
+          <td class="num" style="color:${pctColor(it.pct)}">${it.pct.toFixed(2)}%</td>
+        </tr>`);
+      exportRows.push([`    ${it.itemKode}. ${it.uraian}`, it.pagu, it.realisasi, it.sisa, it.pct.toFixed(2)]);
+    });
+  });
+
+  const body=document.getElementById("akunSubTableBody");
+  body.innerHTML = htmlRows.length>0 ? htmlRows.join("")
+    : `<tr><td colspan="5" class="empty-row">Tidak ada data yang cocok.</td></tr>`;
+  lastAkunSubRows = exportRows;
+}
+
 function renderTable(table, group){
   document.getElementById("tableEntityLabel").textContent = table.entityLabel.replace("Kode | ","");
   document.getElementById("tableGroupLabel").textContent = group;
@@ -1470,6 +1576,7 @@ function renderTable(table, group){
 let lastRealisasiRows = [];
 let lastIkpaRows = [];
 let lastAkunRows = [];
+let lastAkunSubRows = [];
 document.getElementById("exportRealisasiBtn").addEventListener("click", ()=>{
   const header = ["No","Nama Satker","Pagu","Realisasi","Sisa","% Realisasi"];
   const rows = lastRealisasiRows.map(r=>[r.rank ?? "", r.entity, r.m.pagu, r.m.real, r.m.sisa, r.m.pct.toFixed(2)]);
@@ -1487,6 +1594,11 @@ document.getElementById("exportAkunBtn").addEventListener("click", ()=>{
   const rows = lastAkunRows.map(r=>[r.kode, r.uraian, r.pagu, r.realisasi, r.sisa, r.pct.toFixed(2)]);
   downloadCSV("detail-akun-belanja.csv", [header, ...rows]);
   showToast("CSV Detail Akun diunduh");
+});
+document.getElementById("exportAkunSubBtn").addEventListener("click", ()=>{
+  const header = ["Uraian","Pagu","Realisasi","Sisa","% Realisasi"];
+  downloadCSV("rincian-sub-komponen.csv", [header, ...lastAkunSubRows]);
+  showToast("CSV Rincian Sub Komponen diunduh");
 });
 
 </script>
