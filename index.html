@@ -37,6 +37,7 @@
   .sidebar-item.active{ background:var(--chip); color:var(--ink); font-weight:600; }
   .sidebar-item[data-view="realisasi"].active{ border-left-color:var(--orange); }
   .sidebar-item[data-view="ikpa"].active{ border-left-color:var(--teal); }
+  .sidebar-item[data-view="akun"].active{ border-left-color:var(--gold); }
   .sidebar-item svg{ flex-shrink:0; }
   .main-panel{ flex:1; min-width:0; }
   @media(max-width:820px){
@@ -45,6 +46,7 @@
     .sidebar-item{ flex:1; justify-content:center; border-left:none; border-bottom:3px solid transparent; }
     .sidebar-item[data-view="realisasi"].active{ border-left-color:transparent; border-bottom-color:var(--orange); }
     .sidebar-item[data-view="ikpa"].active{ border-left-color:transparent; border-bottom-color:var(--teal); }
+    .sidebar-item[data-view="akun"].active{ border-left-color:transparent; border-bottom-color:var(--gold); }
   }
   .header{
     display:flex; align-items:baseline; justify-content:space-between; gap:12px;
@@ -276,6 +278,10 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
           IKPA
         </div>
+        <div class="sidebar-item" data-view="akun" id="navAkun">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+          Detail Akun
+        </div>
       </nav>
 
       <div class="main-panel">
@@ -375,6 +381,47 @@
                   </tr>
                 </thead>
                 <tbody id="ikpaTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="akunView" style="display:none;">
+          <div class="highlight" id="akunCard" style="display:none; border-color: rgba(224,181,99,.25);">
+            <div class="card-head" style="margin-bottom:2px;">
+              <div class="card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
+                Ketersediaan Dana — <span id="akunSatkerName"></span>
+              </div>
+              <div class="badge" id="akunPeriodeBadge" style="background:#2A2116; color:#E0B563;"></div>
+            </div>
+            <p class="note" id="akunNote"></p>
+            <div class="mini-grid" id="akunMini"></div>
+          </div>
+
+          <div class="card" id="akunTableCard" style="display:none;">
+            <div class="card-head">
+              <div class="card-title">Rincian per Akun Belanja</div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="export-btn" id="exportAkunBtn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  CSV
+                </button>
+                <div class="search-box">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input type="text" id="akunSearchInput" placeholder="Cari kode / uraian…" />
+                </div>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kode</th><th>Uraian</th>
+                    <th class="num">Pagu</th><th class="num">Realisasi</th><th class="num">Sisa</th><th class="num">%</th>
+                  </tr>
+                </thead>
+                <tbody id="akunTableBody"></tbody>
               </table>
             </div>
           </div>
@@ -852,10 +899,92 @@ async function parseIkpaPdf(file){
   return { records, printedDate: extractPrintedDate(pages) };
 }
 
+/* ---------- Laporan Ketersediaan Dana Detail parser (rincian per akun belanja) ----------
+   Validated against a real sample: 78 akun rows whose Pagu and Realisasi sum EXACTLY match
+   the "JUMLAH SELURUHNYA" grand-total line (down to the last rupiah), across 14 pages.
+   Note: this report's pages are landscape/rotated, so the row axis is X and the column axis
+   is Y (opposite of the other two parsers) — everything below accounts for that swap. */
+function parseIDRcomma(s){
+  if(!s) return 0;
+  const v = String(s).replace(/,/g,"").trim();
+  const n = parseInt(v,10);
+  return isNaN(n) ? 0 : n;
+}
+async function parseAkunDetailPdf(file){
+  const pages = await extractPdfPages(file);
+  if(pages.length===0) throw new Error("PDF kosong");
+
+  const isNumTok = (t)=> /^[\d,]+$/.test(t) || /^\d+([.,]\d+)?\s*%$/.test(t);
+
+  // Column axis is Y here; cluster the RIGHT edge (y + width) of value tokens, ignoring the
+  // Uraian/label area (y<=172) so leading numeric codes like "521211" don't pollute the columns.
+  let rightEdges=[];
+  pages.forEach(items=>items.forEach(it=>{
+    const t = it.text.trim();
+    if(isNumTok(t) && it.y>172) rightEdges.push(it.y + it.width);
+  }));
+  const centers = clusterColumns(rightEdges, 8);
+  if(centers.length<7) throw new Error("Tidak menemukan struktur tabel Laporan Ketersediaan Dana di PDF ini.");
+
+  // Header info: satker name/code + periode, read from page 1's left-side label area.
+  const headerItems = pages[0].filter(it=>it.x<172);
+  const satkerKode = (headerItems.find(it=>/^\d{6}$/.test(it.text.trim())) || {}).text || "";
+  const satkerNama = (headerItems.find(it=> it.text.length>25 && /balai|sentra|direktorat|sekretariat|pusat|inspektorat|politeknik/i.test(it.text)) || {}).text || "";
+  const periodeItem = pages[0].find(it=> /^periode\s/i.test(it.text.trim()));
+  const periode = periodeItem ? periodeItem.text.replace(/^periode\s*/i,"").trim() : "";
+
+  const rows=[]; let grandTotal=null;
+  pages.forEach(items=>{
+    const its=[...items].sort((a,b)=>a.x-b.x || a.y-b.y);
+    const lines=[]; const xTol=2.5;
+    its.forEach(it=>{
+      let line = lines.find(l=>Math.abs(l.x-it.x)<=xTol);
+      if(!line){ line={x:it.x, items:[]}; lines.push(line); }
+      line.items.push(it);
+    });
+    lines.forEach(line=>{
+      const uraianItems = line.items.filter(it=>it.y<=172).sort((a,b)=>a.y-b.y);
+      if(uraianItems.length===0) return;
+      const uraianText = uraianItems.map(it=>it.text).join(" ").replace(/\s+/g," ").trim();
+      const firstToken = uraianText.split(" ")[0];
+
+      const valItems = line.items.filter(it=>it.y>172 && isNumTok(it.text.trim()));
+      if(valItems.length===0) return;
+      const vals={};
+      valItems.forEach(it=>{
+        const col = assignCol(it.y + it.width, centers);
+        vals[col] = it.text.trim();
+      });
+      const pagu=parseIDRcomma(vals[0]), sisa=parseIDRcomma(vals[6]);
+      const sdIni=parseIDRcomma(vals[4]);
+
+      if(/^jumlah seluruhnya$/i.test(uraianText)){
+        grandTotal = { pagu, realisasi:sdIni, sisa, pct: pagu>0 ? (sdIni/pagu)*100 : 0 };
+        return;
+      }
+      if(/^\d{6}$/.test(firstToken)){
+        const desc = uraianText.slice(firstToken.length).trim();
+        rows.push({
+          kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa,
+          pct: pagu>0 ? (sdIni/pagu)*100 : 0,
+        });
+      }
+    });
+  });
+
+  if(rows.length===0) throw new Error("Tidak ada baris akun yang berhasil dibaca dari PDF ini.");
+  if(!grandTotal){
+    const pagu = rows.reduce((s,r)=>s+r.pagu,0), realisasi = rows.reduce((s,r)=>s+r.realisasi,0);
+    grandTotal = { pagu, realisasi, sisa: pagu-realisasi, pct: pagu>0 ? (realisasi/pagu)*100 : 0 };
+  }
+  return { satkerKode, satkerNama, periode, rows, grandTotal, printedDate: extractPrintedDate(pages) };
+}
+
 /* ---------- state ---------- */
 let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
+let akunData=null, akunSearch="", akunSortDir="desc";
 let highlightChartInstance=null, ikpaChartInstance=null;
 let activeView="realisasi";
 
@@ -865,28 +994,32 @@ const subtitle=document.getElementById("subtitle");
 const uploadGrid=document.getElementById("uploadGrid");
 const navRealisasi = document.getElementById("navRealisasi");
 const navIkpa = document.getElementById("navIkpa");
+const navAkun = document.getElementById("navAkun");
 const sidebarEl = document.getElementById("sidebar");
 function switchView(view){
   activeView = view;
-  const realisasiEl = document.getElementById("realisasiView");
-  const ikpaEl = document.getElementById("ikpaView");
-  realisasiEl.classList.add("view-fade");
-  ikpaEl.classList.add("view-fade");
-  const showEl = view==="realisasi" ? realisasiEl : ikpaEl;
-  const hideEl = view==="realisasi" ? ikpaEl : realisasiEl;
-  hideEl.classList.remove("show");
-  hideEl.style.display = "none";
-  showEl.style.display = "block";
-  requestAnimationFrame(()=> requestAnimationFrame(()=> showEl.classList.add("show")));
+  const els = { realisasi: document.getElementById("realisasiView"), ikpa: document.getElementById("ikpaView"), akun: document.getElementById("akunView") };
+  Object.values(els).forEach(el=> el.classList.add("view-fade"));
+  Object.entries(els).forEach(([key,el])=>{
+    if(key===view){
+      el.style.display = "block";
+      requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add("show")));
+    } else {
+      el.classList.remove("show");
+      el.style.display = "none";
+    }
+  });
   navRealisasi.classList.toggle("active", view==="realisasi");
   navIkpa.classList.toggle("active", view==="ikpa");
+  navAkun.classList.toggle("active", view==="akun");
 }
 navRealisasi.addEventListener("click", ()=> switchView("realisasi"));
 navIkpa.addEventListener("click", ()=> switchView("ikpa"));
+navAkun.addEventListener("click", ()=> switchView("akun"));
 
 
 async function processFiles(files){
-  let gotRealisasi=false, gotIkpa=false;
+  let gotRealisasi=false, gotIkpa=false, gotAkun=false;
   for(const file of files){
     try{
       const parsed = await parseRealisasiPdf(file);
@@ -898,14 +1031,20 @@ async function processFiles(files){
         IKPA_DATA = records;
         IKPA_PERIODE = printedDate || IKPA_PERIODE_DEFAULT;
         gotIkpa=true;
-      }catch(errIkpa){ /* file tidak cocok dengan format manapun, dilewati */ }
+      }catch(errIkpa){
+        try{
+          const parsedAkun = await parseAkunDetailPdf(file);
+          akunData = parsedAkun;
+          gotAkun=true;
+        }catch(errAkun){ /* file tidak cocok dengan format manapun, dilewati */ }
+      }
     }
   }
-  return {gotRealisasi, gotIkpa};
+  return {gotRealisasi, gotIkpa, gotAkun};
 }
 
-/* ---------- auto-load: fetches realisasi.pdf and ikpa.pdf from this same folder ---------- */
-const AUTO_LOAD_NAMES = ["realisasi.pdf", "ikpa.pdf"];
+/* ---------- auto-load: fetches realisasi.pdf, ikpa.pdf and detail.pdf from this same folder ---------- */
+const AUTO_LOAD_NAMES = ["realisasi.pdf", "ikpa.pdf", "detail.pdf"];
 async function tryAutoLoad(isRefresh=false){
   const autoEl = document.getElementById("autoLoadStatus");
   const autoTitle = document.getElementById("autoLoadTitle");
@@ -929,15 +1068,15 @@ async function tryAutoLoad(isRefresh=false){
       }
       return;
     }
-    const {gotRealisasi, gotIkpa} = await processFiles(fetched);
-    if(gotRealisasi || gotIkpa){
+    const {gotRealisasi, gotIkpa, gotAkun} = await processFiles(fetched);
+    if(gotRealisasi || gotIkpa || gotAkun){
       autoEl.style.display="none";
       render();
       markUpdatedNow();
       showToast(isRefresh ? "Data terbaru berhasil dimuat" : "Dashboard siap — data berhasil dimuat");
     } else if(!isRefresh){
       autoTitle.textContent = "Data ditemukan tapi formatnya tidak dikenali";
-      autoSub.textContent = "File realisasi.pdf/ikpa.pdf ditemukan tapi tidak bisa dibaca. Coba muat ulang, atau periksa apakah file sumbernya sudah benar.";
+      autoSub.textContent = "File realisasi.pdf/ikpa.pdf/detail.pdf ditemukan tapi tidak bisa dibaca. Coba muat ulang, atau periksa apakah file sumbernya sudah benar.";
     }
   }catch(err){
     if(!isRefresh){
@@ -1006,18 +1145,24 @@ function render(){
   }
   renderIkpaHighlight();
   renderIkpaTable();
+  renderAkunView();
 
   // show/hide sidebar items depending on which datasets are available
-  navRealisasi.style.display = table ? "flex" : "none";
-  navIkpa.style.display = IKPA_DATA.length ? "flex" : "none";
-  sidebarEl.style.display = (table && IKPA_DATA.length) ? "flex" : "none";
-  if(table && IKPA_DATA.length) switchView(activeView);
-  else if(table) switchView("realisasi");
-  else switchView("ikpa");
+  const available = { realisasi: !!table, ikpa: IKPA_DATA.length>0, akun: !!akunData };
+  navRealisasi.style.display = available.realisasi ? "flex" : "none";
+  navIkpa.style.display = available.ikpa ? "flex" : "none";
+  navAkun.style.display = available.akun ? "flex" : "none";
+  const availableCount = Object.values(available).filter(Boolean).length;
+  sidebarEl.style.display = availableCount>1 ? "flex" : "none";
+  if(available[activeView]) switchView(activeView);
+  else if(available.realisasi) switchView("realisasi");
+  else if(available.ikpa) switchView("ikpa");
+  else switchView("akun");
 
   const dateParts=[];
   if(table && table.printedDate) dateParts.push(`Realisasi per ${table.printedDate}`);
   if(IKPA_DATA.length && IKPA_PERIODE && IKPA_PERIODE!==IKPA_PERIODE_DEFAULT) dateParts.push(`IKPA per ${IKPA_PERIODE}`);
+  if(akunData && akunData.printedDate) dateParts.push(`Detail Akun per ${akunData.printedDate}`);
   const dateInfoEl = document.getElementById("dataDateInfo");
   if(dateParts.length){
     dateInfoEl.textContent = dateParts.join(" · ");
@@ -1228,6 +1373,66 @@ function renderIkpaTable(){
   lastIkpaRows = rows;
 }
 
+function renderAkunView(){
+  const card=document.getElementById("akunCard");
+  const tableCard=document.getElementById("akunTableCard");
+  if(!akunData){ card.style.display="none"; tableCard.style.display="none"; return; }
+  card.style.display="block";
+  tableCard.style.display="block";
+
+  const gt = akunData.grandTotal;
+  document.getElementById("akunSatkerName").textContent = akunData.satkerNama || akunData.satkerKode || "Satker";
+  document.getElementById("akunPeriodeBadge").textContent = akunData.periode || "";
+  document.getElementById("akunNote").textContent =
+    `${akunData.rows.length} akun belanja terbaca — realisasi keseluruhan ${gt.pct.toFixed(2)}% dari total pagu.`;
+
+  document.getElementById("akunMini").innerHTML = `
+    <div class="mini"><div class="label">Total Pagu</div><div class="value serif" id="akPagu" style="color:${GOLD}">0</div></div>
+    <div class="mini"><div class="label">Total Realisasi</div><div class="value serif" id="akReal" style="color:${GOLD}">0</div></div>
+    <div class="mini"><div class="label">Sisa Anggaran</div><div class="value serif" id="akSisa" style="color:${GOLD}">0</div></div>
+    <div class="mini mini-with-ring">
+      ${ringSVG("akRing", 0, pctColor(gt.pct))}
+      <div>
+        <div class="label">% Realisasi</div>
+        <div id="akTrendBadge"></div>
+      </div>
+    </div>`;
+  const rupiahFmt = (v)=> "Rp " + formatCompact(v);
+  animateNumberText(document.getElementById("akPagu"), gt.pagu, {format:rupiahFmt});
+  animateNumberText(document.getElementById("akReal"), gt.realisasi, {format:rupiahFmt});
+  animateNumberText(document.getElementById("akSisa"), gt.sisa, {format:rupiahFmt});
+  animateRing("akRing", gt.pct, pctColor(gt.pct));
+  const akunTrend = saveTrendPoint("akunPct", gt.pct);
+  renderTrendBadge("akTrendBadge", akunTrend);
+
+  const searchInput=document.getElementById("akunSearchInput");
+  searchInput.value = akunSearch;
+  searchInput.oninput=(e)=>{ akunSearch=e.target.value; renderAkunView(); };
+
+  let rows = akunData.rows.slice();
+  if(akunSearch.trim()){
+    const q=akunSearch.trim().toLowerCase();
+    rows = rows.filter(r=> r.kode.includes(q) || r.uraian.toLowerCase().includes(q));
+  }
+  rows.sort((a,b)=> akunSortDir==="desc" ? b.pagu-a.pagu : a.pagu-b.pagu);
+
+  const body=document.getElementById("akunTableBody");
+  if(rows.length===0){
+    body.innerHTML = `<tr><td colspan="6" class="empty-row">Tidak ada data yang cocok.</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td style="color:#8A968F">${r.kode}</td>
+      <td>${r.uraian}</td>
+      <td class="num">${formatCompact(r.pagu)}</td>
+      <td class="num">${formatCompact(r.realisasi)}</td>
+      <td class="num">${formatCompact(r.sisa)}</td>
+      <td class="num" style="font-weight:500; color:${pctColor(r.pct)}">${r.pct.toFixed(2)}%</td>
+    </tr>`).join("");
+  lastAkunRows = rows;
+}
+
 function renderTable(table, group){
   document.getElementById("tableEntityLabel").textContent = table.entityLabel.replace("Kode | ","");
   document.getElementById("tableGroupLabel").textContent = group;
@@ -1256,6 +1461,7 @@ function renderTable(table, group){
 /* ---------- CSV export wiring ---------- */
 let lastRealisasiRows = [];
 let lastIkpaRows = [];
+let lastAkunRows = [];
 document.getElementById("exportRealisasiBtn").addEventListener("click", ()=>{
   const header = ["No","Nama Satker","Pagu","Realisasi","Sisa","% Realisasi"];
   const rows = lastRealisasiRows.map(r=>[r.rank ?? "", r.entity, r.m.pagu, r.m.real, r.m.sisa, r.m.pct.toFixed(2)]);
@@ -1267,6 +1473,12 @@ document.getElementById("exportIkpaBtn").addEventListener("click", ()=>{
   const rows = lastIkpaRows.map(r=>[r.no, r.uraian, r.perencanaan.toFixed(2), r.pelaksanaan.toFixed(2), r.hasil.toFixed(2), r.nilaiTotal.toFixed(2), r.konversiBobot.toFixed(2), r.nilaiAkhir.toFixed(2)]);
   downloadCSV("nilai-ikpa.csv", [header, ...rows]);
   showToast("CSV IKPA diunduh");
+});
+document.getElementById("exportAkunBtn").addEventListener("click", ()=>{
+  const header = ["Kode Akun","Uraian","Pagu","Realisasi","Sisa","% Realisasi"];
+  const rows = lastAkunRows.map(r=>[r.kode, r.uraian, r.pagu, r.realisasi, r.sisa, r.pct.toFixed(2)]);
+  downloadCSV("detail-akun-belanja.csv", [header, ...rows]);
+  showToast("CSV Detail Akun diunduh");
 });
 
 </script>
