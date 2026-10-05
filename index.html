@@ -280,7 +280,7 @@
         </div>
         <div class="sidebar-item" data-view="akun" id="navAkun">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
-          Detail Akun
+          FA Detail
         </div>
       </nav>
 
@@ -296,10 +296,6 @@
             </div>
             <p class="note" id="highlightNote"></p>
             <div class="mini-grid" id="highlightMini"></div>
-            <div id="hlSparklineWrap" style="margin-bottom:18px; display:none;">
-              <div style="font-size:11.5px; color:var(--faint); margin-bottom:4px;">Tren % realisasi (per kunjungan dashboard)</div>
-              <div class="sparkline"><canvas id="hlSparkline"></canvas></div>
-            </div>
             <div id="highlightChartWrap">
               <div class="chart-card-head">
                 <span style="font-size:12px; font-weight:500; color:var(--sub);">Pagu vs Realisasi per jenis belanja</span>
@@ -1191,17 +1187,12 @@ function renderHighlight(table){
       ${ringSVG("hlRing", 0, pctColor(stats.pct))}
       <div>
         <div class="label">% Realisasi</div>
-        <div id="hlTrendBadge"></div>
       </div>
     </div>`;
   animateNumberText(document.getElementById("hlPagu"), stats.pagu, {format:(v)=>"Rp "+formatCompact(v)});
   animateNumberText(document.getElementById("hlReal"), stats.real, {format:(v)=>"Rp "+formatCompact(v)});
   animateNumberText(document.getElementById("hlSisa"), stats.sisa, {format:(v)=>"Rp "+formatCompact(v)});
   animateRing("hlRing", stats.pct, pctColor(stats.pct));
-  const realisasiTrend = saveTrendPoint("realisasiPct", stats.pct);
-  renderTrendBadge("hlTrendBadge", realisasiTrend);
-  document.getElementById("hlSparklineWrap").style.display = realisasiTrend.length>=2 ? "block" : "none";
-  renderSparkline("hlSparkline", realisasiTrend, ORANGE);
 
   const data=computeMakassarBreakdown(table, row);
   const wrap=document.getElementById("highlightChartWrap");
@@ -1394,7 +1385,6 @@ function renderAkunView(){
       ${ringSVG("akRing", 0, pctColor(gt.pct))}
       <div>
         <div class="label">% Realisasi</div>
-        <div id="akTrendBadge"></div>
       </div>
     </div>`;
   const rupiahFmt = (v)=> "Rp " + formatCompact(v);
@@ -1402,8 +1392,6 @@ function renderAkunView(){
   animateNumberText(document.getElementById("akReal"), gt.realisasi, {format:rupiahFmt});
   animateNumberText(document.getElementById("akSisa"), gt.sisa, {format:rupiahFmt});
   animateRing("akRing", gt.pct, pctColor(gt.pct));
-  const akunTrend = saveTrendPoint("akunPct", gt.pct);
-  renderTrendBadge("akTrendBadge", akunTrend);
 
   const searchInput=document.getElementById("akunSearchInput");
   searchInput.value = akunSearch;
