@@ -930,6 +930,12 @@ async function parseAkunDetailPdf(file){
   const periode = periodeItem ? periodeItem.text.replace(/^periode\s*/i,"").trim() : "";
 
   const rows=[]; let grandTotal=null;
+  // Sub-item breakdown (kegiatan/sub-komponen -> akun -> item bernomor), for the "Rincian per
+  // Sub Komponen" view. currentGroupLabel tracks the deepest non-akun/non-item header line seen
+  // so far (e.g. "112.0A Pembinaan dan Pengembangan Profesi Peksos dan Pensos"); currentAkun
+  // tracks the most recent akun-code row (e.g. "521211 Belanja Bahan"). Both persist across
+  // pages since the table is one continuous flow.
+  const subRows=[]; let currentGroupLabel=""; let currentAkun=null;
   pages.forEach(items=>{
     const its=[...items].sort((a,b)=>a.x-b.x || a.y-b.y);
     const lines=[]; const xTol=2.5;
@@ -953,17 +959,31 @@ async function parseAkunDetailPdf(file){
       });
       const pagu=parseIDRcomma(vals[0]), sisa=parseIDRcomma(vals[6]);
       const sdIni=parseIDRcomma(vals[4]);
+      const pct = pagu>0 ? (sdIni/pagu)*100 : 0;
 
       if(/^jumlah seluruhnya$/i.test(uraianText)){
-        grandTotal = { pagu, realisasi:sdIni, sisa, pct: pagu>0 ? (sdIni/pagu)*100 : 0 };
+        grandTotal = { pagu, realisasi:sdIni, sisa, pct };
         return;
       }
+      const itemMatch = /^(\d{6})\.$/.exec(firstToken);
       if(/^\d{6}$/.test(firstToken)){
         const desc = uraianText.slice(firstToken.length).trim();
-        rows.push({
-          kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa,
-          pct: pagu>0 ? (sdIni/pagu)*100 : 0,
+        rows.push({ kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa, pct });
+        currentAkun = { kode: firstToken, uraian: desc };
+      } else if(itemMatch){
+        const code = itemMatch[1];
+        let desc = uraianText.startsWith(firstToken) ? uraianText.slice(firstToken.length).trim()
+          : uraianText.replace(/^\d{6}\.\s*/, "").trim();
+        subRows.push({
+          groupLabel: currentGroupLabel,
+          akunKode: currentAkun ? currentAkun.kode : "",
+          akunUraian: currentAkun ? currentAkun.uraian : "",
+          itemKode: code, uraian: desc, pagu, realisasi: sdIni, sisa, pct,
         });
+      } else {
+        // Coarser hierarchy level (kegiatan/sub-komponen/output/program header, e.g. "112.0A ...").
+        // The deepest one seen right before an akun row becomes that akun's group label.
+        currentGroupLabel = uraianText;
       }
     });
   });
@@ -973,7 +993,7 @@ async function parseAkunDetailPdf(file){
     const pagu = rows.reduce((s,r)=>s+r.pagu,0), realisasi = rows.reduce((s,r)=>s+r.realisasi,0);
     grandTotal = { pagu, realisasi, sisa: pagu-realisasi, pct: pagu>0 ? (realisasi/pagu)*100 : 0 };
   }
-  return { satkerKode, satkerNama, periode, rows, grandTotal, printedDate: extractPrintedDate(pages) };
+  return { satkerKode, satkerNama, periode, rows, subRows, grandTotal, printedDate: extractPrintedDate(pages) };
 }
 
 /* ---------- state ---------- */
