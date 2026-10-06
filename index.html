@@ -250,12 +250,6 @@
   .trend-flat{ background:var(--chip); color:var(--faint); }
   .sparkline{ height:32px; }
 
-  .export-btn{
-    display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 12px; border-radius:6px;
-    border:1px solid var(--border); background:var(--chip); color:var(--sub); cursor:pointer; transition:.15s;
-  }
-  .export-btn:hover{ background:#232B26; color:var(--ink); }
-
 </style>
 </head>
 <body>
@@ -329,15 +323,9 @@
           <div class="card" id="tableCard">
             <div class="card-head">
               <div class="card-title">Rincian per <span id="tableEntityLabel"></span> — <span id="tableGroupLabel"></span></div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button class="export-btn" id="exportRealisasiBtn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  CSV
-                </button>
-                <div class="search-box">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  <input type="text" id="searchInput" placeholder="Cari nama…" />
-                </div>
+              <div class="search-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="searchInput" placeholder="Cari nama…" />
               </div>
             </div>
             <div class="table-scroll">
@@ -381,15 +369,9 @@
           <div class="card" id="ikpaTableCard" style="display:none;">
             <div class="card-head">
               <div class="card-title">Rincian Nilai IKPA per Satker</div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button class="export-btn" id="exportIkpaBtn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  CSV
-                </button>
-                <div class="search-box">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  <input type="text" id="ikpaSearchInput" placeholder="Cari nama…" />
-                </div>
+              <div class="search-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="ikpaSearchInput" placeholder="Cari nama…" />
               </div>
             </div>
             <div class="table-scroll">
@@ -414,10 +396,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
                 Ketersediaan Dana — <span id="akunSatkerName"></span>
               </div>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <div class="badge" id="akunPeriodeBadge" style="background:#2A2116; color:#E0B563;"></div>
-                <div class="badge" id="akunPrintedDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
-              </div>
+              <div class="badge" id="akunPrintedDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
             </div>
             <p class="note" id="akunNote"></p>
             <div class="mini-grid" id="akunMini"></div>
@@ -426,15 +405,9 @@
           <div class="card" id="akunSubTableCard" style="display:none;">
             <div class="card-head">
               <div class="card-title">Rincian per Sub Komponen</div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button class="export-btn" id="exportAkunSubBtn">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  CSV
-                </button>
-                <div class="search-box">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
-                </div>
+              <div class="search-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
               </div>
             </div>
             <div id="akunSubGroups" class="subk-groups"></div>
@@ -626,19 +599,6 @@ function renderSparkline(canvasId, arr, color){
       elements:{ point:{radius:0} }
     }
   });
-}
-
-/* ---------- CSV export ---------- */
-function downloadCSV(filename, rows){
-  const csv = rows.map(r=> r.map(cell=>{
-    const s = String(cell ?? "");
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-  }).join(",")).join("\r\n");
-  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  setTimeout(()=> URL.revokeObjectURL(url), 1000);
 }
 
 function parsePercentCell(v,pagu,real){
@@ -1426,7 +1386,6 @@ function renderIkpaTable(){
       <td class="num">${r.konversiBobot.toFixed(2)}%</td>
       <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}">${r.nilaiAkhir.toFixed(2)}</td>
     </tr>`).join("");
-  lastIkpaRows = rows;
 }
 
 function renderAkunView(){
@@ -1438,7 +1397,6 @@ function renderAkunView(){
 
   const gt = akunData.grandTotal;
   document.getElementById("akunSatkerName").textContent = akunData.satkerNama || akunData.satkerKode || "Satker";
-  document.getElementById("akunPeriodeBadge").textContent = akunData.periode || "";
   const printedBadge = document.getElementById("akunPrintedDateBadge");
   if(akunData.printedDate){
     printedBadge.textContent = `FA Detail per ${akunData.printedDate}`;
@@ -1554,7 +1512,6 @@ function renderAkunSubView(){
   const container=document.getElementById("akunSubGroups");
   container.innerHTML = groupBlocks.length>0 ? groupBlocks.join("")
     : `<p class="empty-row">Tidak ada data yang cocok.</p>`;
-  lastAkunSubRows = exportRows;
 }
 
 function renderTable(table, group){
@@ -1579,30 +1536,7 @@ function renderTable(table, group){
       <td class="num">${formatCompact(r.m.sisa)}</td>
       <td class="num" style="font-weight:500; color:${pctColor(r.m.pct)}">${r.m.pct.toFixed(2)}%</td>
     </tr>`).join("");
-  lastRealisasiRows = rows;
 }
-
-/* ---------- CSV export wiring ---------- */
-let lastRealisasiRows = [];
-let lastIkpaRows = [];
-let lastAkunSubRows = [];
-document.getElementById("exportRealisasiBtn").addEventListener("click", ()=>{
-  const header = ["No","Nama Satker","Pagu","Realisasi","Sisa","% Realisasi"];
-  const rows = lastRealisasiRows.map(r=>[r.rank ?? "", r.entity, r.m.pagu, r.m.real, r.m.sisa, r.m.pct.toFixed(2)]);
-  downloadCSV("realisasi-anggaran.csv", [header, ...rows]);
-  showToast("CSV realisasi diunduh");
-});
-document.getElementById("exportIkpaBtn").addEventListener("click", ()=>{
-  const header = ["No","Nama Satker","Perencanaan","Pelaksanaan","Hasil","Nilai Total","Konversi Bobot (%)","Nilai Akhir"];
-  const rows = lastIkpaRows.map(r=>[r.no, r.uraian, r.perencanaan.toFixed(2), r.pelaksanaan.toFixed(2), r.hasil.toFixed(2), r.nilaiTotal.toFixed(2), r.konversiBobot.toFixed(2), r.nilaiAkhir.toFixed(2)]);
-  downloadCSV("nilai-ikpa.csv", [header, ...rows]);
-  showToast("CSV IKPA diunduh");
-});
-document.getElementById("exportAkunSubBtn").addEventListener("click", ()=>{
-  const header = ["Uraian","Pagu","Realisasi","Sisa","% Realisasi"];
-  downloadCSV("rincian-sub-komponen.csv", [header, ...lastAkunSubRows]);
-  showToast("CSV Rincian Sub Komponen diunduh");
-});
 
 </script>
 <div class="toast-wrap" id="toastWrap"></div>
