@@ -109,8 +109,6 @@
   #status.err, #ikpaStatus.err{ color:var(--red); max-width:380px; }
   #status.ok, #ikpaStatus.ok{ color:var(--teal); }
 
-  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
-  .fileinfo{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--sub); }
   .tabs{ display:flex; gap:4px; flex-wrap:wrap; }
   .tab{
     padding:6px 12px; font-size:14px; border-radius:8px; border:1px solid var(--border);
@@ -254,7 +252,6 @@
     <div>
       <h1 class="serif">Dasbor Realisasi Anggaran dan IKPA</h1>
       <p id="subtitle">Memuat data terbaru…</p>
-      <p id="dataDateInfo" style="font-size:12.5px; color:var(--faint); margin-top:2px; display:none;"></p>
       <div style="margin-top:8px;">
         <span class="updated-badge" id="updatedBadge" style="display:none;"><span class="dot"></span><span id="updatedBadgeText">Diperbarui baru saja</span></span>
       </div>
@@ -278,13 +275,6 @@
   </div>
 
   <div id="app">
-    <div class="toolbar">
-      <div class="fileinfo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-        <span id="fileInfoText"></span>
-      </div>
-    </div>
-
     <div class="app-shell">
       <nav class="sidebar" id="sidebar">
         <div class="sidebar-item active" data-view="realisasi" id="navRealisasi">
@@ -309,7 +299,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0994D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
                 Sorotan: <span id="highlightName"></span>
               </div>
-              <div class="badge" id="highlightRank"></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div class="badge" id="highlightRank"></div>
+                <div class="badge" id="highlightDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+              </div>
             </div>
             <p class="note" id="highlightNote"></p>
             <div class="mini-grid" id="highlightMini"></div>
@@ -353,7 +346,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
                 Sorotan Nilai IKPA — <span id="ikpaName"></span>
               </div>
-              <div class="badge" id="ikpaRank" style="background:#17251F; color:#4FB08A;"></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div class="badge" id="ikpaRank" style="background:#17251F; color:#4FB08A;"></div>
+                <div class="badge" id="ikpaDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+              </div>
             </div>
             <p class="note" id="ikpaNote"></p>
             <div class="mini-grid" id="ikpaMini"></div>
@@ -1186,14 +1182,11 @@ function render(){
 
   if(table){
         subtitle.textContent = "";
-        document.getElementById("fileInfoText").textContent = `${table.rows.length} baris data`;
-    document.getElementById("app").querySelector(".toolbar").style.display="flex";
     const group = selectedGroup || table.totalName;
     renderHighlight(table);
     renderTable(table, group);
     document.getElementById("tableCard").style.display="block";
   } else {
-    document.getElementById("app").querySelector(".toolbar").style.display="none";
     document.getElementById("highlightCard").style.display="none";
     document.getElementById("tableCard").style.display="none";
   }
@@ -1212,18 +1205,6 @@ function render(){
   else if(available.realisasi) switchView("realisasi");
   else if(available.ikpa) switchView("ikpa");
   else switchView("akun");
-
-  const dateParts=[];
-  if(table && table.printedDate) dateParts.push(`Realisasi per ${table.printedDate}`);
-  if(IKPA_DATA.length && IKPA_PERIODE && IKPA_PERIODE!==IKPA_PERIODE_DEFAULT) dateParts.push(`IKPA per ${IKPA_PERIODE}`);
-  if(akunData && akunData.printedDate) dateParts.push(`Detail Akun per ${akunData.printedDate}`);
-  const dateInfoEl = document.getElementById("dataDateInfo");
-  if(dateParts.length){
-    dateInfoEl.textContent = dateParts.join(" · ");
-    dateInfoEl.style.display="block";
-  } else {
-    dateInfoEl.style.display="none";
-  }
 }
 
 function renderHighlight(table){
@@ -1234,6 +1215,13 @@ function renderHighlight(table){
   const stats=computeMakassarStats(table, row);
   document.getElementById("highlightName").textContent = row.entity.split("|").pop().trim();
   document.getElementById("highlightRank").textContent = `Peringkat ${stats.rank} dari ${stats.total} satker`;
+  const hlDateBadge = document.getElementById("highlightDateBadge");
+  if(table.printedDate){
+    hlDateBadge.textContent = `Realisasi per ${table.printedDate}`;
+    hlDateBadge.style.display = "inline-block";
+  } else {
+    hlDateBadge.style.display = "none";
+  }
   document.getElementById("highlightNote").textContent =
     `% realisasi satker ini ${stats.pct>=stats.nationalAvgPct?"di atas":"di bawah"} rata-rata nasional (${stats.nationalAvgPct.toFixed(2)}%)`;
 
@@ -1316,6 +1304,13 @@ function renderIkpaHighlight(){
 
   document.getElementById("ikpaName").textContent = row.uraian;
   document.getElementById("ikpaRank").textContent = `Peringkat ${rank} dari ${IKPA_DATA.length} satker`;
+  const ikDateBadge = document.getElementById("ikpaDateBadge");
+  if(IKPA_PERIODE && IKPA_PERIODE!==IKPA_PERIODE_DEFAULT){
+    ikDateBadge.textContent = `IKPA per ${IKPA_PERIODE}`;
+    ikDateBadge.style.display = "inline-block";
+  } else {
+    ikDateBadge.style.display = "none";
+  }
   document.getElementById("ikpaNote").textContent =
     `Nilai akhir IKPA satker ini ${row.nilaiAkhir>=avgNilaiAkhir?"di atas":"di bawah"} rata-rata nasional (${avgNilaiAkhir.toFixed(2)})`;
 
