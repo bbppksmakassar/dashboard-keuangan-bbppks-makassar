@@ -406,7 +406,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
                 Ketersediaan Dana — <span id="akunSatkerName"></span>
               </div>
-              <div class="badge" id="akunPeriodeBadge" style="background:#2A2116; color:#E0B563;"></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div class="badge" id="akunPeriodeBadge" style="background:#2A2116; color:#E0B563;"></div>
+                <div class="badge" id="akunPrintedDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+              </div>
             </div>
             <p class="note" id="akunNote"></p>
             <div class="mini-grid" id="akunMini"></div>
@@ -744,6 +747,21 @@ function extractPrintedDate(pages){
   }
   return null;
 }
+// Fallback for reports with no "tanggal cetak" footer (e.g. Laporan Ketersediaan Dana / FA Detail):
+// reads the PDF's own CreationDate/ModDate metadata instead.
+async function extractPdfFileDate(file){
+  try{
+    const buf = await file.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    const meta = await doc.getMetadata();
+    const raw = (meta && meta.info && (meta.info.ModDate || meta.info.CreationDate)) || "";
+    const m = /^D:(\d{4})(\d{2})(\d{2})/.exec(raw);
+    if(!m) return null;
+    const yyyy=parseInt(m[1],10), mm=parseInt(m[2],10), dd=parseInt(m[3],10);
+    const monthName = INDO_MONTHS[mm-1] || m[2];
+    return `${dd} ${monthName} ${yyyy}`;
+  }catch(e){ return null; }
+}
 
 /* ---------- Realisasi Belanja Satker parser (validated: 47/47 rows + grand total match) ---------- */
 const REALISASI_CATS = ["Pegawai","Barang","Modal","Beban Bunga","Subsidi","Hibah","Bansos","Lain-Lain","Transfer","Total"];
@@ -942,7 +960,7 @@ async function parseAkunDetailPdf(file){
   // so far (e.g. "112.0A Pembinaan dan Pengembangan Profesi Peksos dan Pensos"); currentAkun
   // tracks the most recent akun-code row (e.g. "521211 Belanja Bahan"). Both persist across
   // pages since the table is one continuous flow.
-  const subRows=[]; let currentGroupLabel=""; let currentAkun=null;
+  const subRows=[]; let currentGroupLabel=""; let currentAkun=null; let pendingLabel=null;
   pages.forEach(items=>{
     const its=[...items].sort((a,b)=>a.x-b.x || a.y-b.y);
     const lines=[]; const xTol=2.5;
@@ -958,7 +976,15 @@ async function parseAkunDetailPdf(file){
       const firstToken = uraianText.split(" ")[0];
 
       const valItems = line.items.filter(it=>it.y>172 && isNumTok(it.text.trim()));
-      if(valItems.length===0) return;
+      if(valItems.length===0){
+        // Label-only line with no numeric columns — usually the name half of a kegiatan/
+        // sub-komponen header whose code ended up in a slightly different x cluster (layout
+        // drift). Stash it; if the very next value-bearing line is a bare code with no name
+        // of its own, we'll stitch the two back together below.
+        pendingLabel = uraianText;
+        return;
+      }
+      const pending = pendingLabel; pendingLabel = null;
       const vals={};
       valItems.forEach(it=>{
         const col = assignCol(it.y + it.width, centers);
@@ -991,7 +1017,10 @@ async function parseAkunDetailPdf(file){
       } else {
         // Coarser hierarchy level (kegiatan/sub-komponen/output/program header, e.g. "112.0A ...").
         // The deepest one seen right before an akun row becomes that akun's group label.
-        currentGroupLabel = uraianText;
+        // If this line is a bare code with no name text of its own, re-attach the name that
+        // was stashed from the immediately preceding (otherwise value-less) line.
+        currentGroupLabel = (/^\d{3}\.[0-9A-Z]{2}$/.test(firstToken) && uraianText===firstToken && pending)
+          ? `${firstToken} ${pending}` : uraianText;
       }
     });
   });
@@ -1001,7 +1030,8 @@ async function parseAkunDetailPdf(file){
     const pagu = rows.reduce((s,r)=>s+r.pagu,0), realisasi = rows.reduce((s,r)=>s+r.realisasi,0);
     grandTotal = { pagu, realisasi, sisa: pagu-realisasi, pct: pagu>0 ? (realisasi/pagu)*100 : 0 };
   }
-  return { satkerKode, satkerNama, periode, rows, subRows, grandTotal, printedDate: extractPrintedDate(pages) };
+  const printedDate = extractPrintedDate(pages) || await extractPdfFileDate(file);
+  return { satkerKode, satkerNama, periode, rows, subRows, grandTotal, printedDate };
 }
 
 /* ---------- state ---------- */
@@ -1402,6 +1432,13 @@ function renderAkunView(){
   const gt = akunData.grandTotal;
   document.getElementById("akunSatkerName").textContent = akunData.satkerNama || akunData.satkerKode || "Satker";
   document.getElementById("akunPeriodeBadge").textContent = akunData.periode || "";
+  const printedBadge = document.getElementById("akunPrintedDateBadge");
+  if(akunData.printedDate){
+    printedBadge.textContent = `FA Detail per ${akunData.printedDate}`;
+    printedBadge.style.display = "inline-block";
+  } else {
+    printedBadge.style.display = "none";
+  }
   document.getElementById("akunNote").textContent =
     `${akunData.rows.length} akun belanja terbaca — realisasi keseluruhan ${gt.pct.toFixed(2)}% dari total pagu.`;
 
