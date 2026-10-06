@@ -164,6 +164,18 @@
   tr.rinci-item td:first-child{ padding-left:44px; color:var(--sub); }
   tr.rinci-item td:first-child::before{ content:"›"; margin-right:7px; color:var(--faint); }
 
+  .subk-groups{ display:flex; flex-direction:column; gap:22px; }
+  .subk-group{
+    background:var(--bg); border:1px solid var(--line); border-left:3px solid #E0B563;
+    border-radius:10px; padding:16px 18px 6px; box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  .subk-group-title{
+    font-weight:700; color:#E0B563; font-size:13px; letter-spacing:.2px; margin-bottom:12px;
+    padding-bottom:10px; border-bottom:1px dashed var(--border);
+  }
+  .subk-group table{ font-size:12px; }
+  .subk-group tr.rinci-akun td{ border-radius:6px; }
+
   .chart-card-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
   .copy-chart-btn{
     display:flex; align-items:center; gap:5px; font-size:11.5px; padding:5px 10px; border-radius:6px;
@@ -414,17 +426,7 @@
                 </div>
               </div>
             </div>
-            <div class="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Uraian</th>
-                    <th class="num">Pagu</th><th class="num">Realisasi</th><th class="num">Sisa</th><th class="num">%</th>
-                  </tr>
-                </thead>
-                <tbody id="akunSubTableBody"></tbody>
-              </table>
-            </div>
+            <div id="akunSubGroups" class="subk-groups"></div>
           </div>
         </div>
       </div>
@@ -1447,21 +1449,21 @@ function renderAkunSubView(){
   searchInput.oninput=(e)=>{ akunSubSearch=e.target.value; renderAkunSubView(); };
   const q = akunSubSearch.trim().toLowerCase();
 
-  const htmlRows=[]; const exportRows=[];
+  const groupBlocks=[]; const exportRows=[];
   groupLabels.forEach(groupLabel=>{
     const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
     const subRowsInGroup = akunData.subRows.filter(r=>r.groupLabel===groupLabel);
     const groupMatches = !q || groupLabel.toLowerCase().includes(q);
 
-    const groupBlockRows=[]; const groupExportRows=[];
+    const groupBodyRows=[]; const groupExportRows=[];
     akunRowsInGroup.forEach(akun=>{
       const items = subRowsInGroup.filter(s=>s.akunKode===akun.kode);
       const akunMatches = groupMatches || akun.kode.includes(q) || akun.uraian.toLowerCase().includes(q);
       const itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
       if(q && !akunMatches && itemsFiltered.length===0) return;
 
-      groupBlockRows.push(`
-        <tr style="background:rgba(224,181,99,.08); font-weight:600;">
+      groupBodyRows.push(`
+        <tr class="rinci-akun">
           <td>${akun.kode} — ${akun.uraian}</td>
           <td class="num">${formatCompact(akun.pagu)}</td>
           <td class="num">${formatCompact(akun.realisasi)}</td>
@@ -1471,9 +1473,9 @@ function renderAkunSubView(){
       groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
 
       itemsFiltered.forEach(it=>{
-        groupBlockRows.push(`
-          <tr>
-            <td style="padding-left:28px; color:var(--sub);">${it.itemKode}. ${it.uraian}</td>
+        groupBodyRows.push(`
+          <tr class="rinci-item">
+            <td>${it.itemKode}. ${it.uraian}</td>
             <td class="num">${formatCompact(it.pagu)}</td>
             <td class="num">${formatCompact(it.realisasi)}</td>
             <td class="num">${formatCompact(it.sisa)}</td>
@@ -1482,20 +1484,30 @@ function renderAkunSubView(){
         groupExportRows.push([`    ${it.itemKode}. ${it.uraian}`, it.pagu, it.realisasi, it.sisa, it.pct.toFixed(2)]);
       });
     });
-    if(groupBlockRows.length===0) return;
+    if(groupBodyRows.length===0) return;
 
-    htmlRows.push(`
-      <tr style="background:rgba(79,176,138,.1);">
-        <td colspan="5" style="font-weight:700; color:${GOLD};">${groupLabel}</td>
-      </tr>`);
+    groupBlocks.push(`
+      <div class="subk-group">
+        <div class="subk-group-title">${groupLabel}</div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Uraian</th>
+                <th class="num">Pagu</th><th class="num">Realisasi</th><th class="num">Sisa</th><th class="num">%</th>
+              </tr>
+            </thead>
+            <tbody>${groupBodyRows.join("")}</tbody>
+          </table>
+        </div>
+      </div>`);
     exportRows.push([groupLabel, "", "", "", ""]);
-    htmlRows.push(...groupBlockRows);
     exportRows.push(...groupExportRows);
   });
 
-  const body=document.getElementById("akunSubTableBody");
-  body.innerHTML = htmlRows.length>0 ? htmlRows.join("")
-    : `<tr><td colspan="5" class="empty-row">Tidak ada data yang cocok.</td></tr>`;
+  const container=document.getElementById("akunSubGroups");
+  container.innerHTML = groupBlocks.length>0 ? groupBlocks.join("")
+    : `<p class="empty-row">Tidak ada data yang cocok.</p>`;
   lastAkunSubRows = exportRows;
 }
 
