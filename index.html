@@ -575,11 +575,53 @@ function saveTrendPoint(series, value){
     return all[series];
   }catch(e){ return []; }
 }
+/* ---------- daily per-satker IKPA rank snapshot (for rank-change badges in the table) ---------- */
+const IKPA_RANK_KEY = "kemensos_dashboard_ikpa_ranks_v1";
+function saveIkpaRankSnapshot(sortedRows){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const all = JSON.parse(localStorage.getItem(IKPA_RANK_KEY)) || {};
+    const snapshot = {};
+    sortedRows.forEach((r,i)=>{ snapshot[r.uraian] = { rank:i+1, nilaiAkhir:r.nilaiAkhir }; });
+    all[today] = snapshot;
+    // Keep the last 14 calendar-day snapshots only.
+    const dates = Object.keys(all).sort();
+    while(dates.length>14){ delete all[dates.shift()]; }
+    localStorage.setItem(IKPA_RANK_KEY, JSON.stringify(all));
+    return all;
+  }catch(e){ return null; }
+}
+function getYesterdayIkpaRanks(){
+  try{
+    const all = JSON.parse(localStorage.getItem(IKPA_RANK_KEY)) || {};
+    const today = new Date().toISOString().slice(0,10) + "T00:00:00Z";
+    const yesterday = new Date(today); yesterday.setUTCDate(yesterday.getUTCDate()-1);
+    const yesterdayKey = yesterday.toISOString().slice(0,10);
+    return all[yesterdayKey] || null;
+  }catch(e){ return null; }
+}
+function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
+  if(!yesterdaySnapshot || !yesterdaySnapshot[satkerName]) return "";
+  const yRank = yesterdaySnapshot[satkerName].rank;
+  const delta = yRank - todayRank; // positive = moved up (better rank = smaller number)
+  if(delta===0) return `<span class="trend-badge trend-flat" style="margin-left:6px;">→</span>`;
+  const up = delta>0;
+  return `<span class="trend-badge ${up?"trend-up":"trend-down"}" style="margin-left:6px;">${up?"▲":"▼"}${Math.abs(delta)}</span>`;
+}
 function renderTrendBadge(elId, arr){
   const el = document.getElementById(elId);
   if(!el) return;
-  if(arr.length<2){ el.innerHTML = `<span class="trend-badge trend-flat">— Belum ada data pembanding</span>`; return; }
-  const diff = arr[arr.length-1].value - arr[arr.length-2].value;
+  if(arr.length<1){ el.innerHTML = `<span class="trend-badge trend-flat">— Belum ada data pembanding</span>`; return; }
+  // Compare against the point dated exactly one calendar day before today's point (not just
+  // "the previous entry in the array"), so a multi-day gap in visits doesn't get mislabeled
+  // as "dari kemarin".
+  const todayPoint = arr[arr.length-1];
+  const yesterday = new Date(todayPoint.date + "T00:00:00Z");
+  yesterday.setUTCDate(yesterday.getUTCDate()-1);
+  const yesterdayKey = yesterday.toISOString().slice(0,10);
+  const yesterdayPoint = arr.slice(0,-1).reverse().find(p=>p.date===yesterdayKey);
+  if(!yesterdayPoint){ el.innerHTML = `<span class="trend-badge trend-flat">— Belum ada data kemarin</span>`; return; }
+  const diff = todayPoint.value - yesterdayPoint.value;
   if(Math.abs(diff)<0.005){ el.innerHTML = `<span class="trend-badge trend-flat">→ Tetap dari kemarin</span>`; return; }
   const up = diff>0;
   el.innerHTML = `<span class="trend-badge ${up?"trend-up":"trend-down"}">${up?"▲":"▼"} ${Math.abs(diff).toFixed(2)} dari kemarin</span>`;
@@ -1363,6 +1405,14 @@ function renderIkpaTable(){
   searchInput.value = ikpaSearch;
   searchInput.oninput=(e)=>{ ikpaSearch=e.target.value; renderIkpaTable(); };
 
+  // Overall rank (1 = highest Nilai Akhir) is independent of the UI sort toggle and search box —
+  // it's each satker's true standing among all satker, which is what the trend badge compares.
+  const fullRanked = IKPA_DATA.slice().sort((a,b)=> b.nilaiAkhir-a.nilaiAkhir);
+  const rankByUraian = {};
+  fullRanked.forEach((r,i)=>{ rankByUraian[r.uraian] = i+1; });
+  saveIkpaRankSnapshot(fullRanked);
+  const yesterdayRanks = getYesterdayIkpaRanks();
+
   let rows = IKPA_DATA.slice();
   if(ikpaSearch.trim()){
     const q=ikpaSearch.trim().toLowerCase();
@@ -1384,7 +1434,9 @@ function renderIkpaTable(){
       <td class="num">${r.hasil.toFixed(2)}</td>
       <td class="num">${r.nilaiTotal.toFixed(2)}</td>
       <td class="num">${r.konversiBobot.toFixed(2)}%</td>
-      <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}">${r.nilaiAkhir.toFixed(2)}</td>
+      <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}">
+        ${r.nilaiAkhir.toFixed(2)}${rankChangeBadgeHtml(r.uraian, rankByUraian[r.uraian], yesterdayRanks)}
+      </td>
     </tr>`).join("");
 }
 
