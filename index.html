@@ -248,7 +248,6 @@
   .trend-up{ background:rgba(79,176,138,.18); color:var(--teal); }
   .trend-down{ background:rgba(226,104,90,.18); color:var(--red); }
   .trend-flat{ background:var(--chip); color:var(--faint); }
-  .sparkline{ height:32px; }
 
 </style>
 </head>
@@ -353,10 +352,6 @@
             </div>
             <p class="note" id="ikpaNote"></p>
             <div class="mini-grid" id="ikpaMini"></div>
-            <div id="ikpaSparklineWrap" style="margin-bottom:18px; display:none;">
-              <div style="font-size:11.5px; color:var(--faint); margin-bottom:4px;">Tren Nilai Akhir IKPA (per kunjungan dashboard)</div>
-              <div class="sparkline"><canvas id="ikpaSparkline"></canvas></div>
-            </div>
             <div id="ikpaBreakdownWrap">
               <div class="chart-card-head">
                 <span style="font-size:12px; font-weight:500; color:var(--sub);">Rincian komponen indikator</span>
@@ -600,6 +595,33 @@ function getYesterdayIkpaRanks(){
     return all[yesterdayKey] || null;
   }catch(e){ return null; }
 }
+/* ---------- daily per-satker Realisasi rank snapshot (one snapshot per jenis belanja "group") ---------- */
+const REALISASI_RANK_KEY = "kemensos_dashboard_realisasi_ranks_v1";
+function saveRealisasiRankSnapshot(group, rankedEntities){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const all = JSON.parse(localStorage.getItem(REALISASI_RANK_KEY)) || {};
+    const snapshot = {};
+    rankedEntities.forEach((entity,i)=>{ snapshot[entity] = { rank:i+1 }; });
+    if(!all[group]) all[group] = {};
+    all[group][today] = snapshot;
+    Object.keys(all).forEach(g=>{
+      const dates = Object.keys(all[g]).sort();
+      while(dates.length>14){ delete all[g][dates.shift()]; }
+    });
+    localStorage.setItem(REALISASI_RANK_KEY, JSON.stringify(all));
+  }catch(e){}
+}
+function getYesterdayRealisasiRanks(group){
+  try{
+    const all = JSON.parse(localStorage.getItem(REALISASI_RANK_KEY)) || {};
+    const groupData = all[group] || {};
+    const today = new Date().toISOString().slice(0,10) + "T00:00:00Z";
+    const yesterday = new Date(today); yesterday.setUTCDate(yesterday.getUTCDate()-1);
+    const yesterdayKey = yesterday.toISOString().slice(0,10);
+    return groupData[yesterdayKey] || null;
+  }catch(e){ return null; }
+}
 function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
   if(!yesterdaySnapshot || !yesterdaySnapshot[satkerName]) return "";
   const yRank = yesterdaySnapshot[satkerName].rank;
@@ -611,7 +633,10 @@ function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
 function renderTrendBadge(elId, arr){
   const el = document.getElementById(elId);
   if(!el) return;
-  if(arr.length<1){ el.innerHTML = `<span class="trend-badge trend-flat">— Belum ada data pembanding</span>`; return; }
+  // Same inline spacing as the per-row rank badges in the IKPA table, so every small badge
+  // sits the same distance from its "Nilai Akhir" value.
+  const badgeStyle = 'margin-left:6px;';
+  if(arr.length<1){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data pembanding</span>`; return; }
   // Compare against the point dated exactly one calendar day before today's point (not just
   // "the previous entry in the array"), so a multi-day gap in visits doesn't get mislabeled
   // as "dari kemarin".
@@ -620,29 +645,12 @@ function renderTrendBadge(elId, arr){
   yesterday.setUTCDate(yesterday.getUTCDate()-1);
   const yesterdayKey = yesterday.toISOString().slice(0,10);
   const yesterdayPoint = arr.slice(0,-1).reverse().find(p=>p.date===yesterdayKey);
-  if(!yesterdayPoint){ el.innerHTML = `<span class="trend-badge trend-flat">— Belum ada data kemarin</span>`; return; }
+  if(!yesterdayPoint){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data kemarin</span>`; return; }
   const diff = todayPoint.value - yesterdayPoint.value;
-  if(Math.abs(diff)<0.005){ el.innerHTML = `<span class="trend-badge trend-flat">→ Tetap dari kemarin</span>`; return; }
+  if(Math.abs(diff)<0.005){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">→ Tetap dari kemarin</span>`; return; }
   const up = diff>0;
-  el.innerHTML = `<span class="trend-badge ${up?"trend-up":"trend-down"}">${up?"▲":"▼"} ${Math.abs(diff).toFixed(2)} dari kemarin</span>`;
+  el.innerHTML = `<span class="trend-badge ${up?"trend-up":"trend-down"}" style="${badgeStyle}">${up?"▲":"▼"} ${Math.abs(diff).toFixed(2)} dari kemarin</span>`;
 }
-function renderSparkline(canvasId, arr, color){
-  const canvas = document.getElementById(canvasId);
-  if(!canvas || arr.length<2) { if(canvas) canvas.parentElement.style.display="none"; return; }
-  canvas.parentElement.style.display="block";
-  if(canvas._chart) canvas._chart.destroy();
-  canvas._chart = new Chart(canvas, {
-    type:"line",
-    data:{ labels: arr.map(p=>p.date), datasets:[{ data: arr.map(p=>p.value), borderColor:color, borderWidth:2, pointRadius:0, tension:.35, fill:true, backgroundColor:hexToRgba(color,0.12) }] },
-    options:{
-      responsive:true, maintainAspectRatio:false, animation:{duration:500},
-      plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-      scales:{ x:{display:false}, y:{display:false} },
-      elements:{ point:{radius:0} }
-    }
-  });
-}
-
 function parsePercentCell(v,pagu,real){
   if(typeof v==="number" && !Number.isNaN(v)) return v<=1.5? v*100 : v;
   if(typeof v==="string"){ const m=v.match(/(-?[\d.]+)/); if(m) return parseFloat(m[1]); }
@@ -1179,7 +1187,15 @@ function computeTableRows(t, group){
   const rankMap = {};
   rankOrder.forEach((r,i)=>{ rankMap[r.entity] = i+1; });
 
-  let rows=t.rows.map(r=>({ ...r, rank: rankMap[r.entity], m: r.groups[group] || {pagu:0,real:0,pct:0,sisa:0} }));
+  // Rank-change badge: compare today's standing (by % realisasi, within this same jenis
+  // belanja group) against the snapshot from exactly one calendar day before.
+  saveRealisasiRankSnapshot(group, rankOrder.map(r=>r.entity));
+  const yesterdayRanks = getYesterdayRealisasiRanks(group);
+
+  let rows=t.rows.map(r=>({
+    ...r, rank: rankMap[r.entity], m: r.groups[group] || {pagu:0,real:0,pct:0,sisa:0},
+    rankBadge: rankChangeBadgeHtml(r.entity, rankMap[r.entity], yesterdayRanks),
+  }));
   if(search.trim()){
     const q=search.trim().toLowerCase();
     rows=rows.filter(r=>r.entity.toLowerCase().includes(q));
@@ -1335,8 +1351,7 @@ function renderIkpaHighlight(){
     <div class="mini mini-with-ring">
       ${ringSVG("ikRing", 0, pctColor(row.nilaiAkhir))}
       <div>
-        <div class="label">Nilai Akhir IKPA</div>
-        <div id="ikTrendBadge"></div>
+        <div class="label" style="display:flex; align-items:center;">Nilai Akhir IKPA<span id="ikTrendBadge"></span></div>
       </div>
     </div>`;
   animateNumberText(document.getElementById("ikPerenc"), row.perencanaan, {decimals:2});
@@ -1345,8 +1360,6 @@ function renderIkpaHighlight(){
   animateRing("ikRing", row.nilaiAkhir, pctColor(row.nilaiAkhir));
   const ikpaTrend = saveTrendPoint("ikpaNilaiAkhir", row.nilaiAkhir);
   renderTrendBadge("ikTrendBadge", ikpaTrend);
-  document.getElementById("ikpaSparklineWrap").style.display = ikpaTrend.length>=2 ? "block" : "none";
-  renderSparkline("ikpaSparkline", ikpaTrend, TEAL);
 
   const breakdown=[
     {name:"Perencanaan Anggaran", value:row.perencanaan},
@@ -1586,7 +1599,7 @@ function renderTable(table, group){
       <td class="num">${formatCompact(r.m.pagu)}</td>
       <td class="num">${formatCompact(r.m.real)}</td>
       <td class="num">${formatCompact(r.m.sisa)}</td>
-      <td class="num" style="font-weight:500; color:${pctColor(r.m.pct)}">${r.m.pct.toFixed(2)}%</td>
+      <td class="num" style="font-weight:500; color:${pctColor(r.m.pct)}">${r.m.pct.toFixed(2)}%${r.rankBadge}</td>
     </tr>`).join("");
 }
 
