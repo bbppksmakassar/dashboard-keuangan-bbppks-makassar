@@ -139,7 +139,8 @@
   .search-box{
     display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:8px; border:1px solid var(--border);
   }
-  .search-box input{ border:none; outline:none; width:160px; background:transparent; }
+  .search-box input{ border:none; outline:none; width:160px; background:transparent; color:var(--ink); caret-color:var(--teal); }
+  .search-box input::placeholder{ color:var(--faint); }
 
   .highlight{ background:var(--surface); border-radius:10px; padding:20px; margin-bottom:28px; border:1px solid rgba(224,153,77,.25); box-shadow:0 4px 16px rgba(0,0,0,.3); }
   .highlight .badge{ font-size:12px; padding:4px 10px; border-radius:99px; background:#2A2116; color:var(--orange); }
