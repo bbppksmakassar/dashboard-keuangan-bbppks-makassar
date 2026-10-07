@@ -633,9 +633,7 @@ function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
 function renderTrendBadge(elId, arr){
   const el = document.getElementById(elId);
   if(!el) return;
-  // Same inline spacing as the per-row rank badges in the IKPA table, so every small badge
-  // sits the same distance from its "Nilai Akhir" value.
-  const badgeStyle = 'margin-left:6px;';
+  const badgeStyle = 'margin-top:4px;';
   if(arr.length<1){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data pembanding</span>`; return; }
   // Compare against the point dated exactly one calendar day before today's point (not just
   // "the previous entry in the array"), so a multi-day gap in visits doesn't get mislabeled
@@ -1351,7 +1349,8 @@ function renderIkpaHighlight(){
     <div class="mini mini-with-ring">
       ${ringSVG("ikRing", 0, pctColor(row.nilaiAkhir))}
       <div>
-        <div class="label" style="display:flex; align-items:center;">Nilai Akhir IKPA<span id="ikTrendBadge"></span></div>
+        <div class="label">Nilai Akhir IKPA</div>
+        <div id="ikTrendBadge"></div>
       </div>
     </div>`;
   animateNumberText(document.getElementById("ikPerenc"), row.perencanaan, {decimals:2});
@@ -1447,9 +1446,7 @@ function renderIkpaTable(){
       <td class="num">${r.hasil.toFixed(2)}</td>
       <td class="num">${r.nilaiTotal.toFixed(2)}</td>
       <td class="num">${r.konversiBobot.toFixed(2)}%</td>
-      <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}">
-        ${r.nilaiAkhir.toFixed(2)}${rankChangeBadgeHtml(r.uraian, rankByUraian[r.uraian], yesterdayRanks)}
-      </td>
+      <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}"><span style="display:inline-block; min-width:44px; text-align:right;">${r.nilaiAkhir.toFixed(2)}</span>${rankChangeBadgeHtml(r.uraian, rankByUraian[r.uraian], yesterdayRanks)}</td>
     </tr>`).join("");
 }
 
@@ -1599,7 +1596,7 @@ function renderTable(table, group){
       <td class="num">${formatCompact(r.m.pagu)}</td>
       <td class="num">${formatCompact(r.m.real)}</td>
       <td class="num">${formatCompact(r.m.sisa)}</td>
-      <td class="num" style="font-weight:500; color:${pctColor(r.m.pct)}">${r.m.pct.toFixed(2)}%${r.rankBadge}</td>
+      <td class="num" style="font-weight:500; color:${pctColor(r.m.pct)}"><span style="display:inline-block; min-width:50px; text-align:right;">${r.m.pct.toFixed(2)}%</span>${r.rankBadge}</td>
     </tr>`).join("");
 }
 
