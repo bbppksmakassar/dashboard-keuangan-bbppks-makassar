@@ -978,6 +978,15 @@ async function parseAkunDetailPdf(file){
   // tracks the most recent akun-code row (e.g. "521211 Belanja Bahan"). Both persist across
   // pages since the table is one continuous flow.
   const subRows=[]; let currentGroupLabel=""; let currentAkun=null; let pendingLabel=null;
+  // Ancestor-level codes that sit above the kegiatan/sub-komponen line (e.g. "DQ.6897" for
+  // Kegiatan, "ADG.101"/"BAA.101" for Output), captured as bare code tokens with no name text
+  // of their own. They persist until a new one of the same kind appears, and get prepended to
+  // the kegiatan-level groupLabel (e.g. "DQ.6897.ADG.101.112.0A Nama...").
+  let currentKegAncestor="", currentOutAncestor="";
+  const fullGroupLabel = ()=>{
+    const prefix = [currentKegAncestor, currentOutAncestor].filter(Boolean).join(".");
+    return prefix && currentGroupLabel ? `${prefix}.${currentGroupLabel}` : currentGroupLabel;
+  };
   pages.forEach(items=>{
     const its=[...items].sort((a,b)=>a.x-b.x || a.y-b.y);
     const lines=[]; const xTol=2.5;
@@ -1018,19 +1027,25 @@ async function parseAkunDetailPdf(file){
       const itemMatch = /^(\d{6})\.$/.exec(firstToken);
       if(/^\d{6}$/.test(firstToken)){
         const desc = uraianText.slice(firstToken.length).trim();
-        rows.push({ kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa, pct, groupLabel: currentGroupLabel });
+        rows.push({ kode: firstToken, uraian: desc, pagu, realisasi: sdIni, sisa, pct, groupLabel: fullGroupLabel() });
         currentAkun = rows[rows.length-1];
       } else if(itemMatch){
         const code = itemMatch[1];
         let desc = uraianText.startsWith(firstToken) ? uraianText.slice(firstToken.length).trim()
           : uraianText.replace(/^\d{6}\.\s*/, "").trim();
         subRows.push({
-          groupLabel: currentGroupLabel,
+          groupLabel: fullGroupLabel(),
           akunRowIndex: currentAkun ? rows.indexOf(currentAkun) : -1,
           akunKode: currentAkun ? currentAkun.kode : "",
           akunUraian: currentAkun ? currentAkun.uraian : "",
           itemKode: code, uraian: desc, pagu, realisasi: sdIni, sisa, pct,
         });
+      } else if(/^[A-Z]{2}\.\d{3,}$/.test(firstToken) && uraianText===firstToken){
+        // Bare Kegiatan-level ancestor code (e.g. "DQ.6897"), no name attached to this line.
+        currentKegAncestor = firstToken;
+      } else if(/^[A-Z]{3}\.\d{3,}$/.test(firstToken) && uraianText===firstToken){
+        // Bare Output-level ancestor code (e.g. "ADG.101", "BAA.101"), no name attached.
+        currentOutAncestor = firstToken;
       } else {
         // Coarser hierarchy level (kegiatan/sub-komponen/output/program header, e.g. "112.0A ...").
         // The deepest one seen right before an akun row becomes that akun's group label.
