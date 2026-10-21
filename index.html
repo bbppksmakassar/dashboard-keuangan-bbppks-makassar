@@ -1566,7 +1566,8 @@ function renderAkunSubView(){
       const akunMatches = groupMatches || akun.kode.includes(q) || akun.uraian.toLowerCase().includes(q);
       let itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
       if(q && !akunMatches && itemsFiltered.length===0) return;
-      const akunLvl = attnLevel(akun.pct, akun.sisa, akun.pagu);
+      // Akun hanya ditandai bila tidak punya item; kalau punya item, yang ditandai item-nya saja.
+      const akunLvl = items.length===0 ? attnLevel(akun.pct, akun.sisa, akun.pagu) : 0;
       if(akunAttnOnly){
         itemsFiltered = itemsFiltered.filter(it=> attnLevel(it.pct,it.sisa,it.pagu)>0);
         if(akunLvl===0 && itemsFiltered.length===0) return;
