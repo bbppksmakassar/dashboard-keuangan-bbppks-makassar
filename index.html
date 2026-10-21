@@ -172,6 +172,22 @@
   tr.rinci-item td:first-child{ padding-left:44px; color:var(--sub); }
   tr.rinci-item td:first-child::before{ content:"›"; margin-right:7px; color:var(--faint); }
 
+  .attn-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .attn-chip{ font:inherit; font-size:12px; font-weight:600; padding:5px 12px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--sub); cursor:pointer; }
+  .attn-chip.active{ background:rgba(226,104,90,.16); border-color:rgba(226,104,90,.5); color:var(--red); }
+  .attn-chip.all.active{ background:var(--chip); border-color:var(--border); color:var(--ink); }
+  .attn-summary{ display:flex; gap:10px; flex-wrap:wrap; margin:0 0 18px; font-size:12.5px; color:var(--sub); align-items:center; }
+  .attn-pill{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:99px; white-space:nowrap; }
+  .attn-pill.k{ background:rgba(226,104,90,.18); color:var(--red); }
+  .attn-pill.r{ background:rgba(224,153,77,.18); color:var(--orange); }
+  .attn-pill.ok{ background:rgba(79,176,138,.16); color:var(--teal); }
+  .attn-pill.m{ background:var(--chip); color:var(--sub); }
+  .subk-group-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .subk-group-meta{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  tr.attn-2 td:first-child{ box-shadow:inset 3px 0 0 var(--red); }
+  tr.attn-1 td:first-child{ box-shadow:inset 3px 0 0 var(--orange); }
+  tr.attn-2 td.sisa-cell{ color:var(--red); font-weight:600; }
+  tr.attn-1 td.sisa-cell{ color:var(--orange); font-weight:600; }
   .subk-groups{ display:flex; flex-direction:column; gap:22px; }
   .subk-group{
     background:var(--bg); border:1px solid var(--line); border-left:3px solid #E0B563;
@@ -406,11 +422,16 @@
           <div class="card" id="akunSubTableCard" style="display:none;">
             <div class="card-head">
               <div class="card-title">Rincian per Sub Komponen</div>
-              <div class="search-box">
+              <div class="attn-bar">
+                <button type="button" class="attn-chip all active" id="akunAttnAll">Semua</button>
+                <button type="button" class="attn-chip" id="akunAttnOnly">Perlu perhatian</button>
+                <div class="search-box">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
               </div>
+              </div>
             </div>
+            <div id="akunAttnSummary" class="attn-summary"></div>
             <div id="akunSubGroups" class="subk-groups"></div>
           </div>
         </div>
@@ -1052,7 +1073,7 @@ async function parseAkunDetailPdf(file){
 let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
-let akunData=null, akunSubSearch="";
+let akunData=null, akunSubSearch="", akunAttnOnly=false;
 let highlightChartInstance=null, ikpaChartInstance=null;
 let activeView="realisasi";
 
@@ -1484,6 +1505,17 @@ function renderAkunView(){
   animateRing("akRing", gt.pct, pctColor(gt.pct));
 }
 
+/* ---------- FA Detail: peringatan realisasi rendah / sisa besar (ubah ambang di sini) ---------- */
+const ATTN = { kritisPct:30, rendahPct:60, bigSisa:100000000, bigSisaPct:80, minSisa:1000000 };
+// 2 = Kritis, 1 = Perhatian, 0 = normal. Baris dengan sisa < minSisa tidak pernah ditandai.
+function attnLevel(pct, sisa, pagu){
+  if(!(pagu>0) || sisa < ATTN.minSisa) return 0;
+  if(pct < ATTN.kritisPct) return 2;
+  if(pct < ATTN.rendahPct || (sisa >= ATTN.bigSisa && pct < ATTN.bigSisaPct)) return 1;
+  return 0;
+}
+const attnTag = (lvl)=> lvl===2 ? ` <span class="attn-pill k">Kritis</span>` : lvl===1 ? ` <span class="attn-pill r">Perhatian</span>` : "";
+
 function renderAkunSubView(){
   const subTableCard=document.getElementById("akunSubTableCard");
   if(!akunData || !akunData.subRows || akunData.subRows.length===0){
@@ -1512,35 +1544,52 @@ function renderAkunSubView(){
   const q = akunSubSearch.trim().toLowerCase();
 
   const groupBlocks=[]; const exportRows=[]; let accentIdx=0;
+  let totKritis=0, totRendah=0, totGroupsFlagged=0;
   groupLabels.forEach(groupLabel=>{
     const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
     const subRowsInGroup = akunData.subRows.filter(r=>r.groupLabel===groupLabel);
+    // Ringkasan grup (selalu dihitung dari data lengkap, tidak terpengaruh pencarian)
+    let gPagu=0, gReal=0, gSisa=0, gKritis=0, gRendah=0;
+    akunRowsInGroup.forEach(a=>{
+      gPagu+=a.pagu; gReal+=a.realisasi; gSisa+=a.sisa;
+      const its = subRowsInGroup.filter(s=>s.akunKode===a.kode);
+      const units = its.length ? its : [a];
+      units.forEach(u=>{ const l=attnLevel(u.pct,u.sisa,u.pagu); if(l===2) gKritis++; else if(l===1) gRendah++; });
+    });
+    const gPct = gPagu>0 ? gReal/gPagu*100 : 0;
+    totKritis+=gKritis; totRendah+=gRendah; if(gKritis+gRendah>0) totGroupsFlagged++;
     const groupMatches = !q || groupLabel.toLowerCase().includes(q);
 
     const groupBodyRows=[]; const groupExportRows=[];
     akunRowsInGroup.forEach(akun=>{
       const items = subRowsInGroup.filter(s=>s.akunKode===akun.kode);
       const akunMatches = groupMatches || akun.kode.includes(q) || akun.uraian.toLowerCase().includes(q);
-      const itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
+      let itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
       if(q && !akunMatches && itemsFiltered.length===0) return;
+      const akunLvl = attnLevel(akun.pct, akun.sisa, akun.pagu);
+      if(akunAttnOnly){
+        itemsFiltered = itemsFiltered.filter(it=> attnLevel(it.pct,it.sisa,it.pagu)>0);
+        if(akunLvl===0 && itemsFiltered.length===0) return;
+      }
 
       groupBodyRows.push(`
-        <tr class="rinci-akun">
-          <td>${akun.kode} — ${akun.uraian}</td>
+        <tr class="rinci-akun${akunLvl?` attn-${akunLvl}`:""}">
+          <td>${akun.kode} — ${akun.uraian}${attnTag(akunLvl)}</td>
           <td class="num">${formatCompact(akun.pagu)}</td>
           <td class="num">${formatCompact(akun.realisasi)}</td>
-          <td class="num">${formatCompact(akun.sisa)}</td>
+          <td class="num sisa-cell">${formatCompact(akun.sisa)}</td>
           <td class="num" style="color:${pctColor(akun.pct)}">${akun.pct.toFixed(2)}%</td>
         </tr>`);
       groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
 
       itemsFiltered.forEach(it=>{
+        const itLvl = attnLevel(it.pct, it.sisa, it.pagu);
         groupBodyRows.push(`
-          <tr class="rinci-item">
-            <td>${it.itemKode}. ${it.uraian}</td>
+          <tr class="rinci-item${itLvl?` attn-${itLvl}`:""}">
+            <td>${it.itemKode}. ${it.uraian}${attnTag(itLvl)}</td>
             <td class="num">${formatCompact(it.pagu)}</td>
             <td class="num">${formatCompact(it.realisasi)}</td>
-            <td class="num">${formatCompact(it.sisa)}</td>
+            <td class="num sisa-cell">${formatCompact(it.sisa)}</td>
             <td class="num" style="color:${pctColor(it.pct)}">${it.pct.toFixed(2)}%</td>
           </tr>`);
         groupExportRows.push([`    ${it.itemKode}. ${it.uraian}`, it.pagu, it.realisasi, it.sisa, it.pct.toFixed(2)]);
@@ -1552,7 +1601,15 @@ function renderAkunSubView(){
     accentIdx++;
     groupBlocks.push(`
       <div class="subk-group ${accentClass}">
-        <div class="subk-group-title">${groupLabel}</div>
+        <div class="subk-group-head">
+          <div class="subk-group-title">${groupLabel}</div>
+          <div class="subk-group-meta">
+            ${gKritis?`<span class="attn-pill k">${gKritis} kritis</span>`:""}
+            ${gRendah?`<span class="attn-pill r">${gRendah} perhatian</span>`:""}
+            ${(gKritis+gRendah)===0?`<span class="attn-pill ok">Aman</span>`:""}
+            <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · <span style="color:${pctColor(gPct)}">${gPct.toFixed(2)}%</span></span>
+          </div>
+        </div>
         <div class="table-scroll">
           <table>
             <thead>
@@ -1571,7 +1628,21 @@ function renderAkunSubView(){
 
   const container=document.getElementById("akunSubGroups");
   container.innerHTML = groupBlocks.length>0 ? groupBlocks.join("")
-    : `<p class="empty-row">Tidak ada data yang cocok.</p>`;
+    : `<p class="empty-row">${akunAttnOnly && !q ? "Tidak ada item yang perlu perhatian." : "Tidak ada data yang cocok."}</p>`;
+
+  // Ringkasan + tombol filter
+  const sumEl=document.getElementById("akunAttnSummary");
+  sumEl.innerHTML = (totKritis+totRendah)===0
+    ? `<span class="attn-pill ok">Semua item dalam batas aman</span>`
+    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen memiliki item perlu perhatian:</span>
+       <span class="attn-pill k">${totKritis} kritis (realisasi &lt; ${ATTN.kritisPct}%)</span>
+       <span class="attn-pill r">${totRendah} perhatian (&lt; ${ATTN.rendahPct}% atau sisa ≥ ${formatCompact(ATTN.bigSisa)} &amp; &lt; ${ATTN.bigSisaPct}%)</span>`;
+  const btnAll=document.getElementById("akunAttnAll"), btnOnly=document.getElementById("akunAttnOnly");
+  btnAll.classList.toggle("active", !akunAttnOnly);
+  btnOnly.classList.toggle("active", akunAttnOnly);
+  btnOnly.textContent = `Perlu perhatian (${totKritis+totRendah})`;
+  btnAll.onclick=()=>{ akunAttnOnly=false; renderAkunSubView(); };
+  btnOnly.onclick=()=>{ akunAttnOnly=true; renderAkunSubView(); };
 }
 
 function renderTable(table, group){
