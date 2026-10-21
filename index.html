@@ -161,7 +161,8 @@
 
   table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   th{ text-align:left; padding:8px 12px; border-bottom:2px solid var(--line); color:var(--sub); font-weight:500; }
-  th.num, td.num{ text-align:right; }
+  th.num, td.num{ text-align:right; white-space:nowrap; }
+  .badge-slot{ display:inline-block; min-width:52px; text-align:left; vertical-align:middle; }
   td{ padding:8px 12px; border-bottom:1px solid var(--line2); }
   .table-scroll{ overflow-x:auto; }
   .empty-row{ text-align:center; color:var(--faint); padding:24px; }
@@ -604,12 +605,13 @@ function getYesterdayRealisasiRanks(group){
   }catch(e){ return null; }
 }
 function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
-  if(!yesterdaySnapshot || !yesterdaySnapshot[satkerName]) return "";
+  const slot = (inner)=> `<span class="badge-slot">${inner}</span>`;
+  if(!yesterdaySnapshot || !yesterdaySnapshot[satkerName]) return slot("");
   const yRank = yesterdaySnapshot[satkerName].rank;
   const delta = yRank - todayRank; // positive = moved up (better rank = smaller number)
-  if(delta===0) return `<span class="trend-badge trend-flat" style="margin-left:6px;">→</span>`;
+  if(delta===0) return slot(`<span class="trend-badge trend-flat" style="margin-left:6px;">→</span>`);
   const up = delta>0;
-  return `<span class="trend-badge ${up?"trend-up":"trend-down"}" style="margin-left:6px;">${up?"▲":"▼"}${Math.abs(delta)}</span>`;
+  return slot(`<span class="trend-badge ${up?"trend-up":"trend-down"}" style="margin-left:6px;">${up?"▲":"▼"}${Math.abs(delta)}</span>`);
 }
 function renderTrendBadge(elId, arr){
   const el = document.getElementById(elId);
