@@ -144,6 +144,14 @@
 
   .highlight{ background:var(--surface); border-radius:10px; padding:20px; margin-bottom:28px; border:1px solid rgba(224,153,77,.25); box-shadow:0 4px 16px rgba(0,0,0,.3); }
   .highlight .badge{ font-size:12px; padding:4px 10px; border-radius:99px; background:#2A2116; color:var(--orange); }
+  .dl-btn{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:99px; border:1px solid; background:transparent; text-decoration:none; cursor:pointer; white-space:nowrap; }
+  .dl-btn:hover{ background:rgba(255,255,255,.06); }
+  tr.row-hl td{ background:rgba(224,153,77,.14); }
+  tr.row-hl td:first-child{ box-shadow:inset 3px 0 0 var(--orange); }
+  tr.row-hl td:nth-child(2){ font-weight:700; color:#F0C08A; }
+  tr.row-hl.ik td{ background:rgba(79,176,138,.14); }
+  tr.row-hl.ik td:first-child{ box-shadow:inset 3px 0 0 var(--teal); }
+  tr.row-hl.ik td:nth-child(2){ color:#8FD6B5; }
   .highlight .note{ font-size:13px; color:var(--sub); margin:4px 0 20px; }
   .mini-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:24px; }
   @media(min-width:768px){ .mini-grid{ grid-template-columns:repeat(4,1fr); } }
@@ -308,6 +316,7 @@
               <div style="display:flex; align-items:center; gap:6px;">
                 <div class="badge" id="highlightRank"></div>
                 <div class="badge" id="highlightDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+                <a class="dl-btn" href="realisasi.pdf" download="realisasi.pdf" style="color:#E0994D; border-color:#E0994D55;" title="Unduh realisasi.pdf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh PDF</a>
               </div>
             </div>
             <p class="note" id="highlightNote"></p>
@@ -349,6 +358,7 @@
               <div style="display:flex; align-items:center; gap:6px;">
                 <div class="badge" id="ikpaRank" style="background:#17251F; color:#4FB08A;"></div>
                 <div class="badge" id="ikpaDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+                <a class="dl-btn" href="ikpa.pdf" download="ikpa.pdf" style="color:#4FB08A; border-color:#4FB08A55;" title="Unduh ikpa.pdf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh PDF</a>
               </div>
             </div>
             <p class="note" id="ikpaNote"></p>
@@ -392,7 +402,10 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0B563" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
                 Ketersediaan Dana — <span id="akunSatkerName"></span>
               </div>
-              <div class="badge" id="akunPrintedDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div class="badge" id="akunPrintedDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
+                <a class="dl-btn" href="detail.pdf" download="detail.pdf" style="color:#E0B563; border-color:#E0B56355;" title="Unduh detail.pdf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh PDF</a>
+              </div>
             </div>
             <p class="note" id="akunNote"></p>
             <div class="mini-grid" id="akunMini"></div>
@@ -1176,6 +1189,7 @@ tryAutoLoad();
 setInterval(()=> tryAutoLoad(true), 30*60*1000);
 
 /* ---------- computation ---------- */
+const isMakassarName = (n)=> /bbppks/i.test(n) && /makassar/i.test(n);
 function findMakassar(t){
   let row = t.rows.find(r=>/bbppks/i.test(r.entity) && /makassar/i.test(r.entity));
   if(!row) row = t.rows.find(r=>/makassar/i.test(r.entity));
@@ -1454,7 +1468,7 @@ function renderIkpaTable(){
     return;
   }
   body.innerHTML = rows.map(r=>`
-    <tr>
+    <tr class="${isMakassarName(r.uraian)?"row-hl ik":""}">
       <td style="color:#8A968F">${r.no}</td>
       <td>${r.uraian}</td>
       <td class="num">${r.perencanaan.toFixed(2)}</td>
@@ -1606,7 +1620,7 @@ function renderTable(table, group){
     return;
   }
   body.innerHTML = rows.map(r=>`
-    <tr>
+    <tr class="${isMakassarName(r.entity)?"row-hl":""}">
       <td style="color:#8A968F">${r.rank ?? ""}</td>
       <td>${r.entity}</td>
       <td class="num">${formatCompact(r.m.pagu)}</td>
