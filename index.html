@@ -553,75 +553,83 @@ function showToast(message){
   }, 3200);
 }
 
-/* ---------- daily trend (stored in this browser via localStorage) ---------- */
-const TREND_KEY = "kemensos_dashboard_trend_v1";
-function loadTrend(){
-  try{ return JSON.parse(localStorage.getItem(TREND_KEY)) || {}; }catch(e){ return {}; }
+/* ---------- riwayat harian: history.json di repo (diisi otomatis oleh GitHub Actions) ---------- */
+// Menyimpan snapshot peringkat/nilai per tanggal data PDF. Yang disimpan hanya tanggal data
+// terbaru dan hari kerja sebelumnya (snapshot sebelumnya); yang lebih lama dibuang. Dipakai bersama oleh halaman ini dan
+// scripts/update-history.mjs (script itu memuat fungsi-fungsi di bawah dari file ini).
+let HISTORY = { realisasi:{}, ikpa:{} };
+const ID_MONTHS = {januari:1,februari:2,maret:3,april:4,mei:5,juni:6,juli:7,agustus:8,september:9,oktober:10,november:11,desember:12};
+function idDateToIso(str){
+  const m = /(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/.exec(str||"");
+  if(!m) return null;
+  const mon = ID_MONTHS[m[2].toLowerCase()];
+  if(!mon) return null;
+  return `${m[3]}-${String(mon).padStart(2,"0")}-${m[1].padStart(2,"0")}`;
 }
-function saveTrendPoint(series, value){
+function isoShiftDays(iso, days){
+  const t = new Date(iso + "T00:00:00Z");
+  t.setUTCDate(t.getUTCDate()+days);
+  return t.toISOString().slice(0,10);
+}
+function buildRealisasiSnapshot(t){
+  const out = {};
+  t.groupNames.forEach(g=>{
+    const order = [...t.rows].map(r=>({ e:r.entity, pct:(r.groups[g]||{pct:0}).pct })).sort((a,b)=> b.pct-a.pct);
+    const m = {}; order.forEach((r,i)=>{ m[r.e] = i+1; });
+    out[g] = m;
+  });
+  return out;
+}
+function buildIkpaSnapshot(records){
+  const out = {};
+  records.slice().sort((a,b)=> b.nilaiAkhir-a.nilaiAkhir).forEach((r,i)=>{ out[r.uraian] = { rank:i+1, nilaiAkhir:r.nilaiAkhir }; });
+  return out;
+}
+function pruneHistoryDates(obj){
+  const dates = Object.keys(obj).sort();
+  if(dates.length===0) return obj;
+  dates.slice(0, -2).forEach(d=>{ delete obj[d]; });
+  return obj;
+}
+async function loadHistory(){
   try{
-    const all = loadTrend();
-    const arr = all[series] || [];
-    const today = new Date().toISOString().slice(0,10);
-    const last = arr[arr.length-1];
-    if(last && last.date===today) last.value = value;
-    else arr.push({date:today, value});
-    all[series] = arr.slice(-30);
-    localStorage.setItem(TREND_KEY, JSON.stringify(all));
-    return all[series];
-  }catch(e){ return []; }
+    const res = await fetch("history.json", {cache:"no-store"});
+    if(res.ok){
+      const j = await res.json();
+      HISTORY = { realisasi: j.realisasi || {}, ikpa: j.ikpa || {} };
+    }
+  }catch(e){ /* tanpa history.json, badge pembanding menampilkan "belum ada data kemarin" */ }
 }
-/* ---------- daily per-satker IKPA rank snapshot (for rank-change badges in the table) ---------- */
-const IKPA_RANK_KEY = "kemensos_dashboard_ikpa_ranks_v1";
-function saveIkpaRankSnapshot(sortedRows){
-  try{
-    const today = new Date().toISOString().slice(0,10);
-    const all = JSON.parse(localStorage.getItem(IKPA_RANK_KEY)) || {};
-    const snapshot = {};
-    sortedRows.forEach((r,i)=>{ snapshot[r.uraian] = { rank:i+1, nilaiAkhir:r.nilaiAkhir }; });
-    all[today] = snapshot;
-    // Keep the last 14 calendar-day snapshots only.
-    const dates = Object.keys(all).sort();
-    while(dates.length>14){ delete all[dates.shift()]; }
-    localStorage.setItem(IKPA_RANK_KEY, JSON.stringify(all));
-    return all;
-  }catch(e){ return null; }
+// Pembanding = snapshot terakhir yang bertanggal SEBELUM tanggal data PDF yang sedang ditampilkan
+// (hari kerja sebelumnya; Senin dibandingkan dengan Jumat).
+function prevSnapshotDate(byDate, iso){
+  return Object.keys(byDate || {}).filter(d=> d < iso).sort().pop() || null;
 }
+function shortIdDate(iso){
+  const [y,m,d] = iso.split("-");
+  return `${parseInt(d,10)}/${parseInt(m,10)}`;
+}
+function prevLabel(iso, prevIso){
+  return prevIso===isoShiftDays(iso,-1) ? "kemarin" : shortIdDate(prevIso);
+}
+let ikpaPrevLabel = "kemarin";
 function getYesterdayIkpaRanks(){
-  try{
-    const all = JSON.parse(localStorage.getItem(IKPA_RANK_KEY)) || {};
-    const today = new Date().toISOString().slice(0,10) + "T00:00:00Z";
-    const yesterday = new Date(today); yesterday.setUTCDate(yesterday.getUTCDate()-1);
-    const yesterdayKey = yesterday.toISOString().slice(0,10);
-    return all[yesterdayKey] || null;
-  }catch(e){ return null; }
-}
-/* ---------- daily per-satker Realisasi rank snapshot (one snapshot per jenis belanja "group") ---------- */
-const REALISASI_RANK_KEY = "kemensos_dashboard_realisasi_ranks_v1";
-function saveRealisasiRankSnapshot(group, rankedEntities){
-  try{
-    const today = new Date().toISOString().slice(0,10);
-    const all = JSON.parse(localStorage.getItem(REALISASI_RANK_KEY)) || {};
-    const snapshot = {};
-    rankedEntities.forEach((entity,i)=>{ snapshot[entity] = { rank:i+1 }; });
-    if(!all[group]) all[group] = {};
-    all[group][today] = snapshot;
-    Object.keys(all).forEach(g=>{
-      const dates = Object.keys(all[g]).sort();
-      while(dates.length>14){ delete all[g][dates.shift()]; }
-    });
-    localStorage.setItem(REALISASI_RANK_KEY, JSON.stringify(all));
-  }catch(e){}
+  const iso = idDateToIso(IKPA_PERIODE);
+  if(!iso) return null;
+  const prev = prevSnapshotDate(HISTORY.ikpa, iso);
+  if(!prev) return null;
+  ikpaPrevLabel = prevLabel(iso, prev);
+  return HISTORY.ikpa[prev];
 }
 function getYesterdayRealisasiRanks(group){
-  try{
-    const all = JSON.parse(localStorage.getItem(REALISASI_RANK_KEY)) || {};
-    const groupData = all[group] || {};
-    const today = new Date().toISOString().slice(0,10) + "T00:00:00Z";
-    const yesterday = new Date(today); yesterday.setUTCDate(yesterday.getUTCDate()-1);
-    const yesterdayKey = yesterday.toISOString().slice(0,10);
-    return groupData[yesterdayKey] || null;
-  }catch(e){ return null; }
+  const iso = table ? idDateToIso(table.printedDate) : null;
+  if(!iso) return null;
+  const prev = prevSnapshotDate(HISTORY.realisasi, iso);
+  const snap = prev ? HISTORY.realisasi[prev][group] : null;
+  if(!snap) return null;
+  const out = {};
+  Object.keys(snap).forEach(k=>{ out[k] = { rank: snap[k] }; });
+  return out;
 }
 function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
   const slot = (inner)=> `<span class="badge-slot">${inner}</span>`;
@@ -632,24 +640,16 @@ function rankChangeBadgeHtml(satkerName, todayRank, yesterdaySnapshot){
   const up = delta>0;
   return slot(`<span class="trend-badge ${up?"trend-up":"trend-down"}" style="margin-left:6px;">${up?"▲":"▼"}${Math.abs(delta)}</span>`);
 }
-function renderTrendBadge(elId, arr){
+function renderTrendBadge(elId, todayValue, yesterdayValue, label){
+  label = label || "kemarin";
   const el = document.getElementById(elId);
   if(!el) return;
   const badgeStyle = 'margin-top:4px;';
-  if(arr.length<1){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data pembanding</span>`; return; }
-  // Compare against the point dated exactly one calendar day before today's point (not just
-  // "the previous entry in the array"), so a multi-day gap in visits doesn't get mislabeled
-  // as "dari kemarin".
-  const todayPoint = arr[arr.length-1];
-  const yesterday = new Date(todayPoint.date + "T00:00:00Z");
-  yesterday.setUTCDate(yesterday.getUTCDate()-1);
-  const yesterdayKey = yesterday.toISOString().slice(0,10);
-  const yesterdayPoint = arr.slice(0,-1).reverse().find(p=>p.date===yesterdayKey);
-  if(!yesterdayPoint){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data kemarin</span>`; return; }
-  const diff = todayPoint.value - yesterdayPoint.value;
-  if(Math.abs(diff)<0.005){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">→ Tetap dari kemarin</span>`; return; }
+  if(yesterdayValue==null){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">— Belum ada data pembanding</span>`; return; }
+  const diff = todayValue - yesterdayValue;
+  if(Math.abs(diff)<0.005){ el.innerHTML = `<span class="trend-badge trend-flat" style="${badgeStyle}">→ Tetap dari ${label}</span>`; return; }
   const up = diff>0;
-  el.innerHTML = `<span class="trend-badge ${up?"trend-up":"trend-down"}" style="${badgeStyle}">${up?"▲":"▼"} ${Math.abs(diff).toFixed(2)} dari kemarin</span>`;
+  el.innerHTML = `<span class="trend-badge ${up?"trend-up":"trend-down"}" style="${badgeStyle}">${up?"▲":"▼"} ${Math.abs(diff).toFixed(2)} dari ${label}</span>`;
 }
 function parsePercentCell(v,pagu,real){
   if(typeof v==="number" && !Number.isNaN(v)) return v<=1.5? v*100 : v;
@@ -1137,6 +1137,7 @@ async function tryAutoLoad(isRefresh=false){
   const autoTitle = document.getElementById("autoLoadTitle");
   const autoSub = document.getElementById("autoLoadSub");
   try{
+    await loadHistory();
     const fetched = [];
     for(const name of AUTO_LOAD_NAMES){
       try{
@@ -1204,7 +1205,6 @@ function computeTableRows(t, group){
 
   // Rank-change badge: compare today's standing (by % realisasi, within this same jenis
   // belanja group) against the snapshot from exactly one calendar day before.
-  saveRealisasiRankSnapshot(group, rankOrder.map(r=>r.entity));
   const yesterdayRanks = getYesterdayRealisasiRanks(group);
 
   let rows=t.rows.map(r=>({
@@ -1374,8 +1374,8 @@ function renderIkpaHighlight(){
   animateNumberText(document.getElementById("ikPelaks"), row.pelaksanaan, {decimals:2});
   animateNumberText(document.getElementById("ikHasil"), row.hasil, {decimals:2});
   animateRing("ikRing", row.nilaiAkhir, pctColor(row.nilaiAkhir));
-  const ikpaTrend = saveTrendPoint("ikpaNilaiAkhir", row.nilaiAkhir);
-  renderTrendBadge("ikTrendBadge", ikpaTrend);
+  const ikpaYesterday = getYesterdayIkpaRanks();
+  renderTrendBadge("ikTrendBadge", row.nilaiAkhir, ikpaYesterday && ikpaYesterday[row.uraian] ? ikpaYesterday[row.uraian].nilaiAkhir : null, ikpaPrevLabel);
 
   const breakdown=[
     {name:"Perencanaan Anggaran", value:row.perencanaan},
@@ -1439,7 +1439,6 @@ function renderIkpaTable(){
   const fullRanked = IKPA_DATA.slice().sort((a,b)=> b.nilaiAkhir-a.nilaiAkhir);
   const rankByUraian = {};
   fullRanked.forEach((r,i)=>{ rankByUraian[r.uraian] = i+1; });
-  saveIkpaRankSnapshot(fullRanked);
   const yesterdayRanks = getYesterdayIkpaRanks();
 
   let rows = IKPA_DATA.slice();
