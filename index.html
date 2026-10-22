@@ -314,18 +314,16 @@
       <div class="main-panel">
         <div id="realisasiView">
           <div class="highlight" id="highlightCard" style="display:none;">
-            <div class="card-head" style="margin-bottom:2px;">
+            <div class="card-head" style="margin-bottom:18px;">
               <div class="card-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E0994D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
                 Sorotan: <span id="highlightName"></span>
               </div>
               <div style="display:flex; align-items:center; gap:6px;">
-                <div class="badge" id="highlightRank"></div>
                 <div class="badge" id="highlightDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
                 <a class="dl-btn" href="realisasi.pdf" download="realisasi.pdf" style="color:#E0994D; border-color:#E0994D55;" title="Unduh realisasi.pdf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh PDF</a>
               </div>
             </div>
-            <p class="note" id="highlightNote"></p>
             <div class="mini-grid" id="highlightMini"></div>
             <div id="highlightChartWrap">
               <div class="chart-card-head">
@@ -356,18 +354,16 @@
 
         <div id="ikpaView" style="display:none;">
           <div class="highlight" id="ikpaCard" style="display:none; border-color: rgba(79,176,138,.25);">
-            <div class="card-head" style="margin-bottom:2px;">
+            <div class="card-head" style="margin-bottom:18px;">
               <div class="card-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
                 Sorotan Nilai IKPA — <span id="ikpaName"></span>
               </div>
               <div style="display:flex; align-items:center; gap:6px;">
-                <div class="badge" id="ikpaRank" style="background:#17251F; color:#4FB08A;"></div>
                 <div class="badge" id="ikpaDateBadge" style="background:var(--chip); color:var(--sub); display:none;"></div>
                 <a class="dl-btn" href="ikpa.pdf" download="ikpa.pdf" style="color:#4FB08A; border-color:#4FB08A55;" title="Unduh ikpa.pdf"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Unduh PDF</a>
               </div>
             </div>
-            <p class="note" id="ikpaNote"></p>
             <div class="mini-grid" id="ikpaMini"></div>
             <div id="ikpaBreakdownWrap">
               <div class="chart-card-head">
@@ -1259,7 +1255,6 @@ function renderHighlight(table){
   card.style.display="block";
   const stats=computeMakassarStats(table, row);
   document.getElementById("highlightName").textContent = row.entity.split("|").pop().trim();
-  document.getElementById("highlightRank").textContent = `Peringkat ${stats.rank} dari ${stats.total} satker`;
   const hlDateBadge = document.getElementById("highlightDateBadge");
   if(table.printedDate){
     hlDateBadge.textContent = `Realisasi per ${table.printedDate}`;
@@ -1267,8 +1262,6 @@ function renderHighlight(table){
   } else {
     hlDateBadge.style.display = "none";
   }
-  document.getElementById("highlightNote").textContent =
-    `% realisasi satker ini ${stats.pct>=stats.nationalAvgPct?"di atas":"di bawah"} rata-rata nasional (${stats.nationalAvgPct.toFixed(2)}%)`;
 
   document.getElementById("highlightMini").innerHTML = `
     <div class="mini"><div class="label">Pagu</div><div class="value serif" id="hlPagu">Rp 0</div></div>
@@ -1343,12 +1336,7 @@ function renderIkpaHighlight(){
   if(!row || !IKPA_DATA.length){ card.style.display="none"; return; }
   card.style.display="block";
 
-  const sorted=[...IKPA_DATA].sort((a,b)=>b.nilaiAkhir-a.nilaiAkhir);
-  const rank = sorted.findIndex(r=>r.no===row.no)+1;
-  const avgNilaiAkhir = IKPA_DATA.reduce((s,r)=>s+r.nilaiAkhir,0)/IKPA_DATA.length;
-
   document.getElementById("ikpaName").textContent = row.uraian;
-  document.getElementById("ikpaRank").textContent = `Peringkat ${rank} dari ${IKPA_DATA.length} satker`;
   const ikDateBadge = document.getElementById("ikpaDateBadge");
   if(IKPA_PERIODE && IKPA_PERIODE!==IKPA_PERIODE_DEFAULT){
     ikDateBadge.textContent = `IKPA per ${IKPA_PERIODE}`;
@@ -1356,8 +1344,6 @@ function renderIkpaHighlight(){
   } else {
     ikDateBadge.style.display = "none";
   }
-  document.getElementById("ikpaNote").textContent =
-    `Nilai akhir IKPA satker ini ${row.nilaiAkhir>=avgNilaiAkhir?"di atas":"di bawah"} rata-rata nasional (${avgNilaiAkhir.toFixed(2)})`;
 
   document.getElementById("ikpaMini").innerHTML = `
     <div class="mini"><div class="label">Kualitas Perencanaan Anggaran</div><div class="value serif" id="ikPerenc" style="color:${pctColor(row.perencanaan)}">0</div></div>
