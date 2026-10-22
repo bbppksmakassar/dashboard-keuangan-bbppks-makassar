@@ -1606,7 +1606,7 @@ function renderAkunSubView(){
           <td class="num">${formatCompact(akun.pagu)}</td>
           <td class="num">${formatCompact(akun.realisasi)}</td>
           <td class="num sisa-cell">${formatCompact(akun.sisa)}</td>
-          <td class="num" style="color:${attnPctColor(akun.pct, akun.kode)}">${akun.pct.toFixed(2)}%</td>
+          <td class="num"${items.length===0?` style="color:${attnPctColor(akun.pct, akun.kode)}"`:""}>${akun.pct.toFixed(2)}%</td>
         </tr>`);
       groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
 
