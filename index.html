@@ -1502,16 +1502,39 @@ function renderAkunView(){
   animateRing("akRing", gt.pct, pctColor(gt.pct));
 }
 
-/* ---------- FA Detail: peringatan realisasi rendah / sisa besar (ubah ambang di sini) ---------- */
-const ATTN = { kritisPct:30, rendahPct:60, bigSisa:100000000, bigSisaPct:80, minSisa:1000000 };
-// 2 = Kritis, 1 = Perhatian, 0 = normal. Baris dengan sisa < minSisa tidak pernah ditandai.
-function attnLevel(pct, sisa, pagu){
-  if(!(pagu>0) || sisa < ATTN.minSisa) return 0;
-  if(pct < ATTN.kritisPct) return 2;
-  if(pct < ATTN.rendahPct || (sisa >= ATTN.bigSisa && pct < ATTN.bigSisaPct)) return 1;
-  return 0;
+/* ---------- FA Detail: peringatan sisa anggaran berdasarkan target realisasi per triwulan ---------- */
+// Target kumulatif (% realisasi terhadap pagu) pada akhir tiap triwulan, per jenis belanja
+// (diidentifikasi dari 2 digit awal kode akun). Jenis belanja lain (54, 55, 56, 58, ...) tidak punya
+// standar sehingga tidak ditandai.
+const ATTN_TARGETS = {
+  "51": { nama:"Belanja Pegawai", tw:[20,50,75,95] },
+  "52": { nama:"Belanja Barang",  tw:[15,50,70,90] },
+  "53": { nama:"Belanja Modal",   tw:[10,40,70,90] },
+  "57": { nama:"Belanja Bansos",  tw:[25,50,75,95] },
+};
+// Triwulan berjalan diambil dari bulan tanggal cetak (atau periode) laporan FA Detail.
+function currentTriwulan(){
+  if(!akunData) return null;
+  let month = null;
+  const iso = idDateToIso(akunData.printedDate);
+  if(iso) month = parseInt(iso.slice(5,7),10);
+  else{
+    const m = /([A-Za-z]+)\s+\d{4}/.exec(akunData.periode || "");
+    if(m && ID_MONTHS[m[1].toLowerCase()]) month = ID_MONTHS[m[1].toLowerCase()];
+  }
+  return month ? Math.ceil(month/3) : null;
 }
-const attnTag = (lvl)=> lvl===2 ? ` <span class="attn-pill k">Kritis</span>` : lvl===1 ? ` <span class="attn-pill r">Perhatian</span>` : "";
+function attnTarget(akunKode){
+  const t = ATTN_TARGETS[String(akunKode||"").slice(0,2)];
+  const tw = currentTriwulan();
+  return t && tw ? t.tw[tw-1] : null;
+}
+// 2 = di bawah target triwulan berjalan, 0 = normal / tanpa standar.
+function attnLevel(pct, sisa, pagu, akunKode){
+  const target = attnTarget(akunKode);
+  if(target==null || !(pagu>0) || sisa<=0) return 0;
+  return pct < target ? 2 : 0;
+}
 
 function renderAkunSubView(){
   const subTableCard=document.getElementById("akunSubTableCard");
@@ -1541,20 +1564,20 @@ function renderAkunSubView(){
   const q = akunSubSearch.trim().toLowerCase();
 
   const groupBlocks=[]; const exportRows=[]; let accentIdx=0;
-  let totKritis=0, totRendah=0, totGroupsFlagged=0;
+  let totKritis=0, totGroupsFlagged=0;
   groupLabels.forEach(groupLabel=>{
     const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
     const subRowsInGroup = akunData.subRows.filter(r=>r.groupLabel===groupLabel);
     // Ringkasan grup (selalu dihitung dari data lengkap, tidak terpengaruh pencarian)
-    let gPagu=0, gReal=0, gSisa=0, gKritis=0, gRendah=0;
+    let gPagu=0, gReal=0, gSisa=0, gKritis=0;
     akunRowsInGroup.forEach(a=>{
       gPagu+=a.pagu; gReal+=a.realisasi; gSisa+=a.sisa;
       const its = subRowsInGroup.filter(s=>s.akunKode===a.kode);
       const units = its.length ? its : [a];
-      units.forEach(u=>{ const l=attnLevel(u.pct,u.sisa,u.pagu); if(l===2) gKritis++; else if(l===1) gRendah++; });
+      units.forEach(u=>{ if(attnLevel(u.pct,u.sisa,u.pagu,u.akunKode||u.kode)===2) gKritis++; });
     });
     const gPct = gPagu>0 ? gReal/gPagu*100 : 0;
-    totKritis+=gKritis; totRendah+=gRendah; if(gKritis+gRendah>0) totGroupsFlagged++;
+    totKritis+=gKritis; if(gKritis>0) totGroupsFlagged++;
     const groupMatches = !q || groupLabel.toLowerCase().includes(q);
 
     const groupBodyRows=[]; const groupExportRows=[];
@@ -1564,15 +1587,15 @@ function renderAkunSubView(){
       let itemsFiltered = akunMatches ? items : items.filter(it=> it.itemKode.includes(q) || it.uraian.toLowerCase().includes(q));
       if(q && !akunMatches && itemsFiltered.length===0) return;
       // Akun hanya ditandai bila tidak punya item; kalau punya item, yang ditandai item-nya saja.
-      const akunLvl = items.length===0 ? attnLevel(akun.pct, akun.sisa, akun.pagu) : 0;
+      const akunLvl = items.length===0 ? attnLevel(akun.pct, akun.sisa, akun.pagu, akun.kode) : 0;
       if(akunAttnOnly){
-        itemsFiltered = itemsFiltered.filter(it=> attnLevel(it.pct,it.sisa,it.pagu)>0);
+        itemsFiltered = itemsFiltered.filter(it=> attnLevel(it.pct,it.sisa,it.pagu,it.akunKode)>0);
         if(akunLvl===0 && itemsFiltered.length===0) return;
       }
 
       groupBodyRows.push(`
         <tr class="rinci-akun${akunLvl?` attn-${akunLvl}`:""}">
-          <td>${akun.kode} — ${akun.uraian}${attnTag(akunLvl)}</td>
+          <td>${akun.kode} — ${akun.uraian}</td>
           <td class="num">${formatCompact(akun.pagu)}</td>
           <td class="num">${formatCompact(akun.realisasi)}</td>
           <td class="num sisa-cell">${formatCompact(akun.sisa)}</td>
@@ -1581,10 +1604,10 @@ function renderAkunSubView(){
       groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
 
       itemsFiltered.forEach(it=>{
-        const itLvl = attnLevel(it.pct, it.sisa, it.pagu);
+        const itLvl = attnLevel(it.pct, it.sisa, it.pagu, it.akunKode);
         groupBodyRows.push(`
           <tr class="rinci-item${itLvl?` attn-${itLvl}`:""}">
-            <td>${it.itemKode}. ${it.uraian}${attnTag(itLvl)}</td>
+            <td>${it.itemKode}. ${it.uraian}</td>
             <td class="num">${formatCompact(it.pagu)}</td>
             <td class="num">${formatCompact(it.realisasi)}</td>
             <td class="num sisa-cell">${formatCompact(it.sisa)}</td>
@@ -1602,9 +1625,7 @@ function renderAkunSubView(){
         <div class="subk-group-head">
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
-            ${gKritis?`<span class="attn-pill k">${gKritis} kritis</span>`:""}
-            ${gRendah?`<span class="attn-pill r">${gRendah} perhatian</span>`:""}
-            ${(gKritis+gRendah)===0?`<span class="attn-pill ok">Aman</span>`:""}
+            ${gKritis?`<span class="attn-pill k">${gKritis} di bawah target</span>`:`<span class="attn-pill ok">Sesuai target</span>`}
             <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · <span style="color:${pctColor(gPct)}">${gPct.toFixed(2)}%</span></span>
           </div>
         </div>
@@ -1630,15 +1651,18 @@ function renderAkunSubView(){
 
   // Ringkasan + tombol filter
   const sumEl=document.getElementById("akunAttnSummary");
-  sumEl.innerHTML = (totKritis+totRendah)===0
-    ? `<span class="attn-pill ok">Semua item dalam batas aman</span>`
-    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen memiliki item perlu perhatian:</span>
-       <span class="attn-pill k">${totKritis} kritis (realisasi &lt; ${ATTN.kritisPct}%)</span>
-       <span class="attn-pill r">${totRendah} perhatian (&lt; ${ATTN.rendahPct}% atau sisa ≥ ${formatCompact(ATTN.bigSisa)} &amp; &lt; ${ATTN.bigSisaPct}%)</span>`;
+  const tw = currentTriwulan();
+  const targetInfo = tw
+    ? `Target triwulan ${["I","II","III","IV"][tw-1]}: ` + Object.values(ATTN_TARGETS).map(t=>`${t.nama.replace("Belanja ","")} ${t.tw[tw-1]}%`).join(" · ")
+    : "Triwulan tidak dapat ditentukan dari tanggal laporan, sehingga peringatan tidak aktif.";
+  sumEl.innerHTML = totKritis===0
+    ? `<span class="attn-pill ok">Semua item sesuai target</span><span>${targetInfo}</span>`
+    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen punya item di bawah target:</span>
+       <span class="attn-pill k">${totKritis} item di bawah target</span><span>${targetInfo}</span>`;
   const btnAll=document.getElementById("akunAttnAll"), btnOnly=document.getElementById("akunAttnOnly");
   btnAll.classList.toggle("active", !akunAttnOnly);
   btnOnly.classList.toggle("active", akunAttnOnly);
-  btnOnly.textContent = `Perlu perhatian (${totKritis+totRendah})`;
+  btnOnly.textContent = `Perlu perhatian (${totKritis})`;
   btnAll.onclick=()=>{ akunAttnOnly=false; renderAkunSubView(); };
   btnOnly.onclick=()=>{ akunAttnOnly=true; renderAkunSubView(); };
 }
