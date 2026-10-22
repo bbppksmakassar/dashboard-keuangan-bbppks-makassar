@@ -1529,6 +1529,13 @@ function attnTarget(akunKode){
   const tw = currentTriwulan();
   return t && tw ? t.tw[tw-1] : null;
 }
+// Warna kolom %: hijau = mencapai target triwulan berjalan, merah = di bawah target,
+// abu-abu = jenis belanja tanpa standar.
+function attnPctColor(pct, akunKode){
+  const target = attnTarget(akunKode);
+  if(target==null) return GREY_C;
+  return pct >= target ? TEAL : RED;
+}
 // 2 = di bawah target triwulan berjalan, 0 = normal / tanpa standar.
 function attnLevel(pct, sisa, pagu, akunKode){
   const target = attnTarget(akunKode);
@@ -1599,7 +1606,7 @@ function renderAkunSubView(){
           <td class="num">${formatCompact(akun.pagu)}</td>
           <td class="num">${formatCompact(akun.realisasi)}</td>
           <td class="num sisa-cell">${formatCompact(akun.sisa)}</td>
-          <td class="num" style="color:${pctColor(akun.pct)}">${akun.pct.toFixed(2)}%</td>
+          <td class="num" style="color:${attnPctColor(akun.pct, akun.kode)}">${akun.pct.toFixed(2)}%</td>
         </tr>`);
       groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
 
@@ -1611,7 +1618,7 @@ function renderAkunSubView(){
             <td class="num">${formatCompact(it.pagu)}</td>
             <td class="num">${formatCompact(it.realisasi)}</td>
             <td class="num sisa-cell">${formatCompact(it.sisa)}</td>
-            <td class="num" style="color:${pctColor(it.pct)}">${it.pct.toFixed(2)}%</td>
+            <td class="num" style="color:${attnPctColor(it.pct, it.akunKode)}">${it.pct.toFixed(2)}%</td>
           </tr>`);
         groupExportRows.push([`    ${it.itemKode}. ${it.uraian}`, it.pagu, it.realisasi, it.sisa, it.pct.toFixed(2)]);
       });
@@ -1626,7 +1633,7 @@ function renderAkunSubView(){
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
             ${gKritis?`<span class="attn-pill k">${gKritis} di bawah target</span>`:`<span class="attn-pill ok">Sesuai target</span>`}
-            <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · <span style="color:${pctColor(gPct)}">${gPct.toFixed(2)}%</span></span>
+            <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · ${gPct.toFixed(2)}%</span>
           </div>
         </div>
         <div class="table-scroll">
