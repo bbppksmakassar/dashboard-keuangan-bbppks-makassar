@@ -22,7 +22,7 @@
     font-family:'IBM Plex Sans','Inter',system-ui,-apple-system,sans-serif;
   }
   .serif{ font-family:Georgia,'Times New Roman',serif; }
-  .wrap{ max-width:1320px; margin:0 auto; padding:32px 24px 64px; }
+  .wrap{ max-width:1320px; margin:0 auto; padding:0 24px 64px; }
   .app-shell{ display:flex; flex-direction:column; gap:20px; }
   /* Menu toolbar: menyatu dengan header (kanan), logo di kiri */
   .sidebar{
@@ -57,7 +57,7 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     flex-wrap:wrap; margin-bottom:28px; padding:12px 18px 14px;
     position:sticky; top:0; z-index:30; overflow:hidden;
-    border-radius:12px; border:1px solid rgba(214,69,58,.35);
+    border-radius:0 0 12px 12px; border:1px solid rgba(214,69,58,.35); border-top:none;
     background:linear-gradient(100deg, #3A1A18 0%, #2A1B1A 35%, #161C19 100%);
     /* bayangan pertama menutup area di atas header agar isi halaman tidak terlihat saat digulir */
     box-shadow:0 -40px 0 0 var(--bg), 0 6px 20px rgba(0,0,0,.4);
