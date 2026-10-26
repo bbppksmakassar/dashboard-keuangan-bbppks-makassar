@@ -56,10 +56,11 @@
   .header{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     flex-wrap:wrap; margin-bottom:28px; padding:12px 18px 14px;
-    position:sticky; top:8px; z-index:30; overflow:hidden;
+    position:sticky; top:0; z-index:30; overflow:hidden;
     border-radius:12px; border:1px solid rgba(214,69,58,.35);
     background:linear-gradient(100deg, #3A1A18 0%, #2A1B1A 35%, #161C19 100%);
-    box-shadow:0 6px 20px rgba(0,0,0,.4);
+    /* bayangan pertama menutup area di atas header agar isi halaman tidak terlihat saat digulir */
+    box-shadow:0 -40px 0 0 var(--bg), 0 6px 20px rgba(0,0,0,.4);
   }
   .header::after{
     content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
