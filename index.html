@@ -56,15 +56,11 @@
   .header{
     position:sticky; top:0; z-index:30; overflow:hidden; width:100%;
     background:linear-gradient(100deg, #3A1A18 0%, #2A1B1A 35%, #161C19 100%);
-    border-bottom:1px solid rgba(214,69,58,.35); box-shadow:0 6px 20px rgba(0,0,0,.4);
+    box-shadow:0 6px 20px rgba(0,0,0,.4);
   }
   .header-inner{
     max-width:1320px; margin:0 auto; padding:12px 24px 14px;
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
-  }
-  .header::after{
-    content:""; position:absolute; left:0; right:0; bottom:0; height:2px;
-    background:linear-gradient(90deg, var(--teal) 0%, var(--teal) 40%, var(--orange) 100%);
   }
   .header h1{ font-size:28px; font-weight:600; letter-spacing:-0.01em; margin:0; }
   .header p{ font-size:14px; color:var(--sub); margin:4px 0 0; }
