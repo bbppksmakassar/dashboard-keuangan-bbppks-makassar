@@ -23,30 +23,27 @@
   }
   .serif{ font-family:Georgia,'Times New Roman',serif; }
   .wrap{ max-width:1320px; margin:0 auto; padding:32px 24px 64px; }
-  .app-shell{ display:flex; gap:28px; align-items:flex-start; }
+  .app-shell{ display:flex; flex-direction:column; gap:20px; }
+  /* Menu toolbar (horizontal, di atas konten) */
   .sidebar{
-    width:208px; flex-shrink:0; background:var(--surface); border-radius:12px;
-    padding:12px; position:sticky; top:24px; display:flex; flex-direction:column; gap:4px;
-    box-shadow:0 4px 16px rgba(0,0,0,.35);
+    display:flex; flex-direction:row; align-items:center; gap:4px; flex-wrap:wrap;
+    background:var(--surface); border-radius:12px; padding:6px;
+    position:sticky; top:8px; z-index:20; box-shadow:0 4px 16px rgba(0,0,0,.35);
   }
   .sidebar-item{
-    display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:8px;
-    font-size:14px; color:var(--sub); cursor:pointer; transition:.15s; border-left:3px solid transparent;
+    display:flex; align-items:center; gap:8px; padding:9px 16px; border-radius:8px;
+    font-size:14px; color:var(--sub); cursor:pointer; transition:.15s; border-bottom:3px solid transparent;
   }
   .sidebar-item:hover{ background:var(--chip); }
   .sidebar-item.active{ background:var(--chip); color:var(--ink); font-weight:600; }
-  .sidebar-item[data-view="realisasi"].active{ border-left-color:var(--orange); }
-  .sidebar-item[data-view="ikpa"].active{ border-left-color:var(--teal); }
-  .sidebar-item[data-view="akun"].active{ border-left-color:var(--gold); }
+  .sidebar-item[data-view="realisasi"].active{ border-bottom-color:var(--orange); }
+  .sidebar-item[data-view="ikpa"].active{ border-bottom-color:var(--teal); }
+  .sidebar-item[data-view="akun"].active{ border-bottom-color:var(--gold); }
   .sidebar-item svg{ flex-shrink:0; }
   .main-panel{ flex:1; min-width:0; }
   @media(max-width:820px){
-    .app-shell{ flex-direction:column; }
-    .sidebar{ width:100%; flex-direction:row; position:static; padding:6px; }
-    .sidebar-item{ flex:1; justify-content:center; border-left:none; border-bottom:3px solid transparent; }
-    .sidebar-item[data-view="realisasi"].active{ border-left-color:transparent; border-bottom-color:var(--orange); }
-    .sidebar-item[data-view="ikpa"].active{ border-left-color:transparent; border-bottom-color:var(--teal); }
-    .sidebar-item[data-view="akun"].active{ border-left-color:transparent; border-bottom-color:var(--gold); }
+    .sidebar{ top:0; }
+    .sidebar-item{ flex:1; justify-content:center; padding:9px 8px; font-size:13px; }
   }
   .header{
     display:flex; align-items:baseline; justify-content:space-between; gap:12px;
@@ -140,6 +137,7 @@
     display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:8px; border:1px solid var(--border);
   }
   .search-box input{ border:none; outline:none; width:160px; background:transparent; color:var(--ink); caret-color:var(--teal); }
+  .ik-cat{ display:inline-block; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:99px; white-space:nowrap; }
   .search-box input::placeholder{ color:var(--faint); }
 
   .highlight{ background:var(--surface); border-radius:10px; padding:20px; margin-bottom:28px; border:1px solid rgba(224,153,77,.25); box-shadow:0 4px 16px rgba(0,0,0,.3); }
@@ -388,7 +386,7 @@
                   <tr>
                     <th>No</th><th>Nama Satker</th>
                     <th class="num">Perencanaan</th><th class="num">Pelaksanaan</th><th class="num">Hasil</th>
-                    <th class="num">Nilai Total</th><th class="num">Konversi Bobot</th><th class="num">Nilai Akhir</th>
+                    <th class="num">Nilai Total</th><th class="num">Konversi Bobot</th><th class="num">Nilai Akhir</th><th>Kategori</th>
                   </tr>
                 </thead>
                 <tbody id="ikpaTableBody"></tbody>
@@ -489,6 +487,15 @@ function formatFull(n){
   if(n===undefined||n===null||Number.isNaN(n)) return "-";
   return "Rp "+Math.round(n).toLocaleString("id-ID");
 }
+// Kategori nilai IKPA: >=95 Sangat Baik, 89-<95 Baik, 70-<89 Cukup, <70 Kurang.
+function ikpaCategory(v){
+  if(v>=95) return { label:"Sangat Baik", color:"#5B8DEF" };
+  if(v>=89) return { label:"Baik",        color:"#2BB6E8" };
+  if(v>=70) return { label:"Cukup",       color:"#F2B01E" };
+  return { label:"Kurang", color:"#E2685A" };
+}
+const ikpaColor = (v)=> ikpaCategory(v).color;
+const ikpaCatPill = (v)=>{ const c=ikpaCategory(v); return `<span class="ik-cat" style="color:${c.color}; background:${hexToRgba(c.color,0.16)};">${c.label}</span>`; };
 function pctColor(p){ return p>=95?TEAL : p>=80?GOLD : RED; }
 function cellStr(v){ return typeof v==="string" ? v.trim() : v; }
 
@@ -1346,20 +1353,21 @@ function renderIkpaHighlight(){
   }
 
   document.getElementById("ikpaMini").innerHTML = `
-    <div class="mini"><div class="label">Kualitas Perencanaan Anggaran</div><div class="value serif" id="ikPerenc" style="color:${pctColor(row.perencanaan)}">0</div></div>
-    <div class="mini"><div class="label">Kualitas Pelaksanaan Anggaran</div><div class="value serif" id="ikPelaks" style="color:${pctColor(row.pelaksanaan)}">0</div></div>
-    <div class="mini"><div class="label">Kualitas Hasil Pelaksanaan</div><div class="value serif" id="ikHasil" style="color:${pctColor(row.hasil)}">0</div></div>
+    <div class="mini"><div class="label">Kualitas Perencanaan Anggaran</div><div class="value serif" id="ikPerenc" style="color:${ikpaColor(row.perencanaan)}">0</div></div>
+    <div class="mini"><div class="label">Kualitas Pelaksanaan Anggaran</div><div class="value serif" id="ikPelaks" style="color:${ikpaColor(row.pelaksanaan)}">0</div></div>
+    <div class="mini"><div class="label">Kualitas Hasil Pelaksanaan</div><div class="value serif" id="ikHasil" style="color:${ikpaColor(row.hasil)}">0</div></div>
     <div class="mini mini-with-ring">
-      ${ringSVG("ikRing", 0, pctColor(row.nilaiAkhir))}
+      ${ringSVG("ikRing", 0, ikpaColor(row.nilaiAkhir))}
       <div>
         <div class="label">Nilai Akhir IKPA</div>
+        <div style="margin-top:4px;">${ikpaCatPill(row.nilaiAkhir)}</div>
         <div id="ikTrendBadge"></div>
       </div>
     </div>`;
   animateNumberText(document.getElementById("ikPerenc"), row.perencanaan, {decimals:2});
   animateNumberText(document.getElementById("ikPelaks"), row.pelaksanaan, {decimals:2});
   animateNumberText(document.getElementById("ikHasil"), row.hasil, {decimals:2});
-  animateRing("ikRing", row.nilaiAkhir, pctColor(row.nilaiAkhir));
+  animateRing("ikRing", row.nilaiAkhir, ikpaColor(row.nilaiAkhir));
   const ikpaYesterday = getYesterdayIkpaRanks();
   renderTrendBadge("ikTrendBadge", row.nilaiAkhir, ikpaYesterday && ikpaYesterday[row.uraian] ? ikpaYesterday[row.uraian].nilaiAkhir : null, ikpaPrevLabel);
 
@@ -1379,13 +1387,13 @@ function renderIkpaHighlight(){
         data: breakdown.map(d=>d.value),
         backgroundColor: (ctx)=>{
           const v = breakdown[ctx.dataIndex] ? breakdown[ctx.dataIndex].value : 0;
-          const c = pctColor(v);
+          const c = ikpaColor(v);
           return makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, hexToRgba(c,0.55), c);
         },
         borderRadius:8, borderSkipped:false, barPercentage:0.6, categoryPercentage:0.8,
         datalabels:{
           display:true, anchor:"end", align:"end", offset:4,
-          color:(ctx)=> pctColor(breakdown[ctx.dataIndex].value),
+          color:(ctx)=> ikpaColor(breakdown[ctx.dataIndex].value),
           font:{size:11, weight:"700"},
           formatter:(v)=> v.toFixed(2)
         }
@@ -1436,7 +1444,7 @@ function renderIkpaTable(){
 
   const body=document.getElementById("ikpaTableBody");
   if(rows.length===0){
-    body.innerHTML = `<tr><td colspan="8" class="empty-row">Tidak ada data yang cocok.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" class="empty-row">Tidak ada data yang cocok.</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(r=>`
@@ -1448,7 +1456,8 @@ function renderIkpaTable(){
       <td class="num">${r.hasil.toFixed(2)}</td>
       <td class="num">${r.nilaiTotal.toFixed(2)}</td>
       <td class="num">${r.konversiBobot.toFixed(2)}%</td>
-      <td class="num" style="font-weight:500; color:${pctColor(r.nilaiAkhir)}"><span style="display:inline-block; min-width:44px; text-align:right;">${r.nilaiAkhir.toFixed(2)}</span>${rankChangeBadgeHtml(r.uraian, rankByUraian[r.uraian], yesterdayRanks)}</td>
+      <td class="num" style="font-weight:500; color:${ikpaColor(r.nilaiAkhir)}"><span style="display:inline-block; min-width:44px; text-align:right;">${r.nilaiAkhir.toFixed(2)}</span>${rankChangeBadgeHtml(r.uraian, rankByUraian[r.uraian], yesterdayRanks)}</td>
+      <td>${ikpaCatPill(r.nilaiAkhir)}</td>
     </tr>`).join("");
 }
 
