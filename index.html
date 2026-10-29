@@ -1111,9 +1111,15 @@ function switchView(view){
   navIkpa.classList.toggle("active", view==="ikpa");
   navAkun.classList.toggle("active", view==="akun");
 }
-navRealisasi.addEventListener("click", ()=> switchView("realisasi"));
-navIkpa.addEventListener("click", ()=> switchView("ikpa"));
-navAkun.addEventListener("click", ()=> switchView("akun"));
+// Klik menu: pindah sub menu lalu kembali ke bagian paling atas halaman. (Pemuatan ulang data
+// otomatis memanggil switchView() langsung, jadi tidak ikut menggulir.)
+function goToView(view){
+  switchView(view);
+  window.scrollTo({ top:0, left:0, behavior:"auto" });
+}
+navRealisasi.addEventListener("click", ()=> goToView("realisasi"));
+navIkpa.addEventListener("click", ()=> goToView("ikpa"));
+navAkun.addEventListener("click", ()=> goToView("akun"));
 
 
 async function processFiles(files){
