@@ -1710,7 +1710,7 @@ function downloadAkunSubPdf(){
       theme: "grid",
       styles: { font:"helvetica", fontSize:8, cellPadding:3, lineColor:[225,225,220], lineWidth:0.4, textColor:[30,30,30], overflow:"linebreak" },
       head: [
-        [{ content:`${g.label}\nPagu Rp ${rp(g.pagu)}  |  Realisasi Rp ${rp(g.real)}  |  ${g.pct.toFixed(2)}%${g.below ? `  |  ${g.below} baris di bawah target` : ""}`,
+        [{ content:g.label,
            colSpan:5, styles:{ halign:"left", fillColor:acc, textColor:[25,25,25], fontStyle:"bold", fontSize:9, cellPadding:5 } }],
         ["Uraian", "Pagu (Rp)", "Realisasi (Rp)", "Sisa (Rp)", "%"],
       ],
