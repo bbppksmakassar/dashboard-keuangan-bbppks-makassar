@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="is-loading">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -248,33 +248,74 @@
   .view-fade.show{ opacity:1; transform:translateY(0); }
   @keyframes pulseDot{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
 
-  /* ---- layar loading ---- */
-  .ld-wrap{ max-width:760px; margin:8px auto 0; display:flex; flex-direction:column; gap:20px; }
-  .ld-card{
-    background:var(--surface); border:1px solid var(--line); border-radius:14px;
-    padding:30px 28px 26px; text-align:center; box-shadow:0 4px 16px rgba(0,0,0,.3);
+  /* ---- layar loading: satu halaman penuh, beranimasi ---- */
+  html.is-loading, html.is-loading body{ overflow:hidden; }
+  .ld-wrap{
+    position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+    padding:24px; overflow:hidden; background:#0A0F0D; transition:opacity .6s ease, visibility .6s ease;
   }
-  .ld-ring{
-    width:46px; height:46px; margin:0 auto 14px; border-radius:50%;
-    border:3px solid var(--line); border-top-color:var(--teal); border-right-color:var(--orange);
-    animation:spin 1s linear infinite;
+  .ld-wrap.ld-hide{ opacity:0; visibility:hidden; }
+  /* latar: gradasi bergerak + kisi tipis */
+  .ld-bg{ position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .ld-orb{ position:absolute; width:46vmax; height:46vmax; border-radius:50%; filter:blur(90px); opacity:.34; animation:ldDrift 16s ease-in-out infinite alternate; }
+  .ld-orb.o1{ background:#4FB08A; left:-14vmax; top:-16vmax; }
+  .ld-orb.o2{ background:#E0994D; right:-16vmax; top:8vmax; animation-duration:20s; animation-delay:-6s; opacity:.26; }
+  .ld-orb.o3{ background:#D6453A; left:22vmax; bottom:-24vmax; animation-duration:24s; animation-delay:-11s; opacity:.24; }
+  @keyframes ldDrift{ from{ transform:translate(0,0) scale(1); } to{ transform:translate(7vmax,5vmax) scale(1.18); } }
+  .ld-grid{
+    position:absolute; inset:0; opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(ellipse at center, #000 20%, transparent 75%); mask-image:radial-gradient(ellipse at center, #000 20%, transparent 75%);
   }
-  .ld-title{ font-size:17px; font-weight:600; }
-  .ld-sub{ font-size:13px; color:var(--sub); margin-top:4px; min-height:18px; }
-  .ld-bar{ height:6px; border-radius:99px; background:var(--chip); overflow:hidden; margin:20px auto 0; max-width:420px; }
+  /* deretan batang di dasar layar */
+  .ld-bars{ position:absolute; left:0; right:0; bottom:0; height:30vh; display:flex; align-items:flex-end; gap:6px; padding:0 10px; opacity:.5; }
+  .ld-bars i{
+    flex:1; min-width:4px; height:var(--h); border-radius:6px 6px 0 0; transform-origin:bottom;
+    background:linear-gradient(180deg, var(--c), transparent); animation:ldBar 2.6s ease-in-out infinite; animation-delay:var(--d);
+  }
+  @keyframes ldBar{ 0%,100%{ transform:scaleY(.25); } 50%{ transform:scaleY(1); } }
+  /* konten tengah */
+  .ld-center{ position:relative; width:100%; max-width:440px; text-align:center; animation:ldIn .8s ease both; }
+  @keyframes ldIn{ from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:none; } }
+  .ld-logo{ display:inline-block; background:#fff; border-radius:12px; padding:7px 12px; box-shadow:0 8px 30px rgba(0,0,0,.45); margin-bottom:26px; }
+  .ld-logo img{ height:34px; display:block; }
+  .ld-donut-wrap{ position:relative; width:168px; height:168px; margin:0 auto 22px; }
+  .ld-donut{ width:100%; height:100%; animation:ldSpin 9s linear infinite; filter:drop-shadow(0 0 18px rgba(79,176,138,.35)); }
+  @keyframes ldSpin{ to{ transform:rotate(360deg); } }
+  .ld-seg{ fill:none; stroke-width:15; stroke-linecap:round; stroke-dasharray:0 339.3; animation:ldArc 3s ease-in-out infinite; }
+  @keyframes ldArc{ 0%{ stroke-dasharray:0 339.3; } 45%,80%{ stroke-dasharray:var(--len) 339.3; } 100%{ stroke-dasharray:0 339.3; } }
+  .ld-pulse{
+    position:absolute; inset:50% auto auto 50%; width:62px; height:62px; margin:-31px 0 0 -31px; border-radius:50%;
+    background:radial-gradient(circle, rgba(79,176,138,.5), rgba(79,176,138,0) 70%); animation:ldPulse 2s ease-in-out infinite;
+  }
+  @keyframes ldPulse{ 0%,100%{ transform:scale(.7); opacity:.5; } 50%{ transform:scale(1.25); opacity:1; } }
+  .ld-title{ font-size:21px; font-weight:600; letter-spacing:.01em; }
+  .ld-title .dots span{ animation:ldDot 1.4s infinite both; }
+  .ld-title .dots span:nth-child(2){ animation-delay:.2s; } .ld-title .dots span:nth-child(3){ animation-delay:.4s; }
+  @keyframes ldDot{ 0%,80%,100%{ opacity:.15; } 40%{ opacity:1; } }
+  .ld-sub{ font-size:13.5px; color:var(--sub); margin-top:6px; min-height:20px; }
+  .ld-bar{ height:6px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; margin:22px auto 0; }
   .ld-bar i{
-    display:block; height:100%; width:6%; border-radius:99px; transition:width .45s ease;
+    display:block; height:100%; width:6%; border-radius:99px; transition:width .5s ease; position:relative;
     background:linear-gradient(90deg,var(--teal),var(--orange));
   }
-  .ld-steps{ list-style:none; padding:0; margin:20px auto 0; max-width:420px; text-align:left; display:flex; flex-direction:column; gap:6px; }
-  .ld-steps li{ display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:8px; background:var(--chip); font-size:13.5px; }
+  .ld-bar i::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); animation:ldShine 1.5s linear infinite; }
+  @keyframes ldShine{ from{ transform:translateX(-100%); } to{ transform:translateX(100%); } }
+  .ld-steps{
+    list-style:none; padding:10px; margin:22px auto 0; text-align:left; display:flex; flex-direction:column; gap:6px;
+    background:rgba(18,24,21,.9); border:1px solid rgba(255,255,255,.07); border-radius:14px;
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 10px 36px rgba(0,0,0,.35);
+  }
+  .ld-steps li{ display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:9px; background:rgba(255,255,255,.04); font-size:13.5px; }
   .ld-name{ flex:1; font-weight:500; }
   .ld-name small{ display:block; font-size:11px; color:var(--faint); font-weight:400; margin-top:1px; }
   .ld-state{ font-size:12px; color:var(--faint); white-space:nowrap; }
   .ld-ico{ width:18px; height:18px; flex-shrink:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; line-height:1; }
   .ld-ico.wait{ border:2px solid var(--border); }
   .ld-ico.load{ border:2px solid var(--line); border-top-color:var(--teal); animation:spin .9s linear infinite; }
-  .ld-ico.ok{ background:rgba(79,176,138,.2); color:var(--teal); }
+  .ld-ico.ok{ background:rgba(79,176,138,.2); color:var(--teal); animation:ldPop .35s ease; }
+  @keyframes ldPop{ 0%{ transform:scale(.4); } 70%{ transform:scale(1.25); } 100%{ transform:scale(1); } }
   .ld-ico.ok::after{ content:"✓"; }
   .ld-ico.miss{ background:var(--line); color:var(--faint); }
   .ld-ico.miss::after{ content:"–"; }
@@ -283,22 +324,19 @@
   li.is-ok .ld-state{ color:var(--teal); }
   li.is-fail .ld-state{ color:var(--red); }
   .ld-retry{
-    margin-top:18px; font:inherit; font-size:13px; font-weight:600; padding:8px 18px; border-radius:99px;
-    border:1px solid var(--border); background:transparent; color:var(--ink); cursor:pointer;
+    margin-top:20px; font:inherit; font-size:13px; font-weight:600; padding:9px 22px; border-radius:99px;
+    border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--ink); cursor:pointer;
   }
   .ld-retry:hover{ background:var(--chip); }
-  .ld-wrap.is-error .ld-ring{ animation:none; border-color:var(--red); }
-  .ld-wrap.is-error .ld-bar i{ background:var(--red); }
-  .ld-skel{ display:flex; flex-direction:column; gap:16px; opacity:.75; }
-  .ld-skel-card{ background:var(--surface); border-radius:12px; padding:20px; }
-  .ld-skel-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
-  .ld-skel .sk, .ld-skel-card .sk{
-    border-radius:8px; margin-top:12px; background:linear-gradient(90deg,#1E2521 25%,#2A322D 37%,#1E2521 63%);
-    background-size:400% 100%; animation:shimmer 1.4s ease infinite;
+  .ld-wrap.is-error .ld-donut{ animation:none; filter:drop-shadow(0 0 18px rgba(226,104,90,.4)); }
+  .ld-wrap.is-error .ld-seg{ stroke:#E2685A; animation:none; stroke-dasharray:var(--len) 339.3; opacity:.8; }
+  .ld-wrap.is-error .ld-pulse, .ld-wrap.is-error .ld-bars i{ animation-play-state:paused; }
+  .ld-wrap.is-error .ld-bar i{ background:var(--red); } .ld-wrap.is-error .ld-bar i::after{ display:none; }
+  @media(max-width:560px){ .ld-donut-wrap{ width:132px; height:132px; } .ld-title{ font-size:18px; } .ld-bars{ gap:3px; padding:0 4px; } }
+  @media(prefers-reduced-motion:reduce){
+    .ld-orb, .ld-bars i, .ld-donut, .ld-pulse, .ld-bar i::after, .ld-ico.load, .ld-title .dots span{ animation:none; }
+    .ld-seg{ animation:none; stroke-dasharray:var(--len) 339.3; }
   }
-  .ld-skel-grid .sk{ margin-top:0; }
-  @media(max-width:560px){ .ld-skel-grid{ grid-template-columns:repeat(2,1fr); } .ld-card{ padding:24px 16px 20px; } }
-  @media(prefers-reduced-motion:reduce){ .ld-ring, .ld-ico.load, .ld-skel .sk{ animation:none; } }
   .skeleton-line{
     height:14px; border-radius:6px; margin:8px auto; background:linear-gradient(90deg,#1E2521 25%,#2A322D 37%,#1E2521 63%);
     background-size:400% 100%; animation:shimmer 1.4s ease infinite;
@@ -358,9 +396,25 @@
 
   <div id="uploadGrid">
     <div id="autoLoadStatus" class="ld-wrap" role="status" aria-live="polite">
-      <div class="ld-card">
-        <div class="ld-ring" aria-hidden="true"></div>
-        <div class="ld-title" id="autoLoadTitle">Memuat data terbaru…</div>
+      <div class="ld-bg" aria-hidden="true">
+        <div class="ld-orb o1"></div><div class="ld-orb o2"></div><div class="ld-orb o3"></div>
+        <div class="ld-grid"></div>
+        <div class="ld-bars" id="ldBars"></div>
+      </div>
+      <div class="ld-center">
+        <div class="ld-logo"><img id="ldLogo" alt="Kemensos" /></div>
+        <div class="ld-donut-wrap" aria-hidden="true">
+          <div class="ld-pulse"></div>
+          <svg class="ld-donut" viewBox="0 0 160 160">
+            <g transform="rotate(-90 80 80)">
+              <circle class="ld-seg" cx="80" cy="80" r="54" stroke="#4FB08A" style="--len:112px; stroke-dashoffset:0; animation-delay:0s"/>
+              <circle class="ld-seg" cx="80" cy="80" r="54" stroke="#E0994D" style="--len:70px; stroke-dashoffset:-130.3px; animation-delay:.25s"/>
+              <circle class="ld-seg" cx="80" cy="80" r="54" stroke="#E0B563" style="--len:52px; stroke-dashoffset:-218.6px; animation-delay:.5s"/>
+              <circle class="ld-seg" cx="80" cy="80" r="54" stroke="#D6453A" style="--len:32px; stroke-dashoffset:-288.9px; animation-delay:.75s"/>
+            </g>
+          </svg>
+        </div>
+        <div class="ld-title"><span id="autoLoadTitle">Memuat data terbaru</span><span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
         <div class="ld-sub" id="autoLoadSub">Mengambil data dari server.</div>
         <div class="ld-bar" aria-hidden="true"><i id="ldBar"></i></div>
         <ul class="ld-steps" id="ldSteps">
@@ -369,24 +423,6 @@
           <li data-step="detail.pdf"><span class="ld-ico wait"></span><span class="ld-name">FA Detail<small>detail.pdf</small></span><span class="ld-state">Menunggu</span></li>
         </ul>
         <button type="button" class="ld-retry" id="ldRetry" hidden onclick="location.reload()">Muat ulang</button>
-      </div>
-      <div class="ld-skel" aria-hidden="true">
-        <div class="ld-skel-card">
-          <div class="sk" style="height:16px; width:38%;"></div>
-          <div class="ld-skel-grid">
-            <div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div>
-            <div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div>
-          </div>
-          <div class="sk" style="height:150px; margin-top:16px;"></div>
-        </div>
-        <div class="ld-skel-card">
-          <div class="sk" style="height:16px; width:30%;"></div>
-          <div class="sk" style="height:12px; margin-top:18px;"></div>
-          <div class="sk" style="height:12px; width:92%;"></div>
-          <div class="sk" style="height:12px; width:96%;"></div>
-          <div class="sk" style="height:12px; width:88%;"></div>
-          <div class="sk" style="height:12px; width:94%;"></div>
-        </div>
       </div>
     </div>
   </div>
@@ -1248,8 +1284,35 @@ function setStep(name, state){
   const bar = document.getElementById("ldBar");
   if(bar) bar.style.width = Math.max(6, Math.round(total*92)) + "%";
 }
+// Isi logo dan deretan batang latar; tutup layar loading dengan transisi halus.
+(function initLoader(){
+  const logo = document.querySelector(".brand-badge img"), ld = document.getElementById("ldLogo");
+  if(logo && ld) ld.src = logo.src;
+  const bars = document.getElementById("ldBars");
+  if(bars){
+    const colors = ["#4FB08A","#E0994D","#E0B563","#D6453A","#7FA6E0"];
+    for(let i=0;i<34;i++){
+      const el = document.createElement("i");
+      el.style.setProperty("--h", (30 + Math.round(Math.abs(Math.sin(i*1.7))*70)) + "%");
+      el.style.setProperty("--d", (-(i*0.19 % 2.6)).toFixed(2) + "s");
+      el.style.setProperty("--c", colors[i % colors.length]);
+      bars.appendChild(el);
+    }
+  }
+})();
+const LD_STARTED = Date.now(), LD_MIN_MS = 1400;
+async function hideLoader(){
+  // minimal tampil sebentar supaya animasi tidak berkedip bila data termuat sangat cepat
+  const wait = LD_MIN_MS - (Date.now()-LD_STARTED);
+  if(wait>0) await new Promise(r=> setTimeout(r, wait));
+  const el = document.getElementById("autoLoadStatus");
+  el.classList.add("ld-hide");
+  document.documentElement.classList.remove("is-loading");
+  setTimeout(()=>{ el.style.display = "none"; }, 650);
+}
 function setLoadError(title, sub){
   document.getElementById("autoLoadTitle").textContent = title;
+  const dots = document.querySelector("#autoLoadStatus .ld-title .dots"); if(dots) dots.style.display = "none";
   document.getElementById("autoLoadSub").textContent = sub;
   document.getElementById("autoLoadStatus").classList.add("is-error");
   document.getElementById("ldRetry").hidden = false;
@@ -1287,8 +1350,8 @@ async function tryAutoLoad(isRefresh=false){
     });
     if(!isRefresh) fetched.forEach(f=>{ if(!done.has(f.name)) setStep(f.name, "fail"); });
     if(gotRealisasi || gotIkpa || gotAkun){
-      autoEl.style.display="none";
-      render();
+      if(isRefresh) autoEl.style.display="none"; else { render(); await hideLoader(); }
+      if(isRefresh) render();
       showToast(isRefresh ? "Data terbaru berhasil dimuat" : "Dashboard siap — data berhasil dimuat");
     } else if(!isRefresh){
       setLoadError("Data ditemukan tapi formatnya tidak dikenali", "File realisasi.pdf/ikpa.pdf/detail.pdf ditemukan tapi tidak bisa dibaca. Coba muat ulang, atau periksa apakah file sumbernya sudah benar.");
