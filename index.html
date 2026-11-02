@@ -328,6 +328,9 @@
     border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--ink); cursor:pointer;
   }
   .ld-retry:hover{ background:var(--chip); }
+  /* teks, bar progres, dan daftar berkas disembunyikan; pesan hanya muncul saat terjadi kesalahan */
+  .ld-title, .ld-sub, .ld-bar, .ld-steps{ display:none; }
+  .ld-wrap.is-error .ld-title, .ld-wrap.is-error .ld-sub{ display:block; }
   .ld-wrap.is-error .ld-donut{ animation:none; filter:drop-shadow(0 0 18px rgba(226,104,90,.4)); }
   .ld-wrap.is-error .ld-seg{ stroke:#E2685A; animation:none; stroke-dasharray:var(--len) 339.3; opacity:.8; }
   .ld-wrap.is-error .ld-pulse, .ld-wrap.is-error .ld-bars i{ animation-play-state:paused; }
