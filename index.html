@@ -8,6 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --teal:#4FB08A; --orange:#E0994D; --red:#E2685A; --gold:#E0B563; --grey:#9AA79E;
@@ -234,7 +236,6 @@
   .brand-badge img{ height:34px; display:block; }
   .icon{ display:inline-flex; vertical-align:-3px; }
   #app{ display:none; }
-  #autoLoadStatus svg{ animation: spin 1.1s linear infinite; }
   @keyframes spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
   /* ---- interactive polish ---- */
   .card, .highlight, .kpi, .mini{ transition: transform .18s ease, box-shadow .18s ease; }
@@ -245,6 +246,57 @@
   .view-fade.show{ opacity:1; transform:translateY(0); }
   @keyframes pulseDot{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
 
+  /* ---- layar loading ---- */
+  .ld-wrap{ max-width:760px; margin:8px auto 0; display:flex; flex-direction:column; gap:20px; }
+  .ld-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:30px 28px 26px; text-align:center; box-shadow:0 4px 16px rgba(0,0,0,.3);
+  }
+  .ld-ring{
+    width:46px; height:46px; margin:0 auto 14px; border-radius:50%;
+    border:3px solid var(--line); border-top-color:var(--teal); border-right-color:var(--orange);
+    animation:spin 1s linear infinite;
+  }
+  .ld-title{ font-size:17px; font-weight:600; }
+  .ld-sub{ font-size:13px; color:var(--sub); margin-top:4px; min-height:18px; }
+  .ld-bar{ height:6px; border-radius:99px; background:var(--chip); overflow:hidden; margin:20px auto 0; max-width:420px; }
+  .ld-bar i{
+    display:block; height:100%; width:6%; border-radius:99px; transition:width .45s ease;
+    background:linear-gradient(90deg,var(--teal),var(--orange));
+  }
+  .ld-steps{ list-style:none; padding:0; margin:20px auto 0; max-width:420px; text-align:left; display:flex; flex-direction:column; gap:6px; }
+  .ld-steps li{ display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:8px; background:var(--chip); font-size:13.5px; }
+  .ld-name{ flex:1; font-weight:500; }
+  .ld-name small{ display:block; font-size:11px; color:var(--faint); font-weight:400; margin-top:1px; }
+  .ld-state{ font-size:12px; color:var(--faint); white-space:nowrap; }
+  .ld-ico{ width:18px; height:18px; flex-shrink:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; line-height:1; }
+  .ld-ico.wait{ border:2px solid var(--border); }
+  .ld-ico.load{ border:2px solid var(--line); border-top-color:var(--teal); animation:spin .9s linear infinite; }
+  .ld-ico.ok{ background:rgba(79,176,138,.2); color:var(--teal); }
+  .ld-ico.ok::after{ content:"✓"; }
+  .ld-ico.miss{ background:var(--line); color:var(--faint); }
+  .ld-ico.miss::after{ content:"–"; }
+  .ld-ico.fail{ background:rgba(226,104,90,.2); color:var(--red); }
+  .ld-ico.fail::after{ content:"!"; }
+  li.is-ok .ld-state{ color:var(--teal); }
+  li.is-fail .ld-state{ color:var(--red); }
+  .ld-retry{
+    margin-top:18px; font:inherit; font-size:13px; font-weight:600; padding:8px 18px; border-radius:99px;
+    border:1px solid var(--border); background:transparent; color:var(--ink); cursor:pointer;
+  }
+  .ld-retry:hover{ background:var(--chip); }
+  .ld-wrap.is-error .ld-ring{ animation:none; border-color:var(--red); }
+  .ld-wrap.is-error .ld-bar i{ background:var(--red); }
+  .ld-skel{ display:flex; flex-direction:column; gap:16px; opacity:.75; }
+  .ld-skel-card{ background:var(--surface); border-radius:12px; padding:20px; }
+  .ld-skel-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:16px; }
+  .ld-skel .sk, .ld-skel-card .sk{
+    border-radius:8px; margin-top:12px; background:linear-gradient(90deg,#1E2521 25%,#2A322D 37%,#1E2521 63%);
+    background-size:400% 100%; animation:shimmer 1.4s ease infinite;
+  }
+  .ld-skel-grid .sk{ margin-top:0; }
+  @media(max-width:560px){ .ld-skel-grid{ grid-template-columns:repeat(2,1fr); } .ld-card{ padding:24px 16px 20px; } }
+  @media(prefers-reduced-motion:reduce){ .ld-ring, .ld-ico.load, .ld-skel .sk{ animation:none; } }
   .skeleton-line{
     height:14px; border-radius:6px; margin:8px auto; background:linear-gradient(90deg,#1E2521 25%,#2A322D 37%,#1E2521 63%);
     background-size:400% 100%; animation:shimmer 1.4s ease infinite;
@@ -303,14 +355,36 @@
 <div class="wrap">
 
   <div id="uploadGrid">
-    <div id="autoLoadStatus" class="folder-card">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#4FB08A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-      <div class="title" id="autoLoadTitle">Memuat data terbaru…</div>
-      <div class="sub" id="autoLoadSub">Mengambil realisasi.pdf dan ikpa.pdf.</div>
-      <div style="max-width:420px; margin:18px auto 0;">
-        <div class="skeleton-line" style="width:80%;"></div>
-        <div class="skeleton-line" style="width:95%;"></div>
-        <div class="skeleton-line" style="width:65%;"></div>
+    <div id="autoLoadStatus" class="ld-wrap" role="status" aria-live="polite">
+      <div class="ld-card">
+        <div class="ld-ring" aria-hidden="true"></div>
+        <div class="ld-title" id="autoLoadTitle">Memuat data terbaru…</div>
+        <div class="ld-sub" id="autoLoadSub">Mengambil data dari server.</div>
+        <div class="ld-bar" aria-hidden="true"><i id="ldBar"></i></div>
+        <ul class="ld-steps" id="ldSteps">
+          <li data-step="realisasi.pdf"><span class="ld-ico wait"></span><span class="ld-name">Realisasi Anggaran<small>realisasi.pdf</small></span><span class="ld-state">Menunggu</span></li>
+          <li data-step="ikpa.pdf"><span class="ld-ico wait"></span><span class="ld-name">IKPA<small>ikpa.pdf</small></span><span class="ld-state">Menunggu</span></li>
+          <li data-step="detail.pdf"><span class="ld-ico wait"></span><span class="ld-name">FA Detail<small>detail.pdf</small></span><span class="ld-state">Menunggu</span></li>
+        </ul>
+        <button type="button" class="ld-retry" id="ldRetry" hidden onclick="location.reload()">Muat ulang</button>
+      </div>
+      <div class="ld-skel" aria-hidden="true">
+        <div class="ld-skel-card">
+          <div class="sk" style="height:16px; width:38%;"></div>
+          <div class="ld-skel-grid">
+            <div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div>
+            <div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div>
+          </div>
+          <div class="sk" style="height:150px; margin-top:16px;"></div>
+        </div>
+        <div class="ld-skel-card">
+          <div class="sk" style="height:16px; width:30%;"></div>
+          <div class="sk" style="height:12px; margin-top:18px;"></div>
+          <div class="sk" style="height:12px; width:92%;"></div>
+          <div class="sk" style="height:12px; width:96%;"></div>
+          <div class="sk" style="height:12px; width:88%;"></div>
+          <div class="sk" style="height:12px; width:94%;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -429,6 +503,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
               </div>
+                <button type="button" class="dl-btn" id="akunSubPdfBtn" style="color:#E0B563; border-color:#E0B56355;" title="Unduh rincian sub komponen sebagai PDF"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span id="akunSubPdfLabel">Unduh PDF</span></button>
               </div>
             </div>
             <div id="akunAttnSummary" class="attn-summary"></div>
@@ -1082,7 +1157,7 @@ async function parseAkunDetailPdf(file){
 let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
-let akunData=null, akunSubSearch="", akunAttnOnly=false;
+let akunData=null, akunSubSearch="", akunAttnOnly=false, akunExportState=null;
 let highlightChartInstance=null, ikpaChartInstance=null;
 let activeView="realisasi";
 
@@ -1122,25 +1197,25 @@ navIkpa.addEventListener("click", ()=> goToView("ikpa"));
 navAkun.addEventListener("click", ()=> goToView("akun"));
 
 
-async function processFiles(files){
+async function processFiles(files, onFile){
   let gotRealisasi=false, gotIkpa=false, gotAkun=false;
   for(const file of files){
     try{
       const parsed = await parseRealisasiPdf(file);
       table = parsed; selectedGroup = parsed.totalName; fileName = file.name;
-      gotRealisasi=true;
+      gotRealisasi=true; if(onFile) onFile(file.name, "realisasi");
     }catch(errRealisasi){
       try{
         const {records, printedDate} = await parseIkpaPdf(file);
         IKPA_DATA = records;
         IKPA_PERIODE = printedDate || IKPA_PERIODE_DEFAULT;
-        gotIkpa=true;
+        gotIkpa=true; if(onFile) onFile(file.name, "ikpa");
       }catch(errIkpa){
         try{
           const parsedAkun = await parseAkunDetailPdf(file);
           akunData = parsedAkun;
-          gotAkun=true;
-        }catch(errAkun){ /* file tidak cocok dengan format manapun, dilewati */ }
+          gotAkun=true; if(onFile) onFile(file.name, "akun");
+        }catch(errAkun){ /* file tidak cocok dengan format manapun, dilewati */ if(onFile) onFile(file.name, null); }
       }
     }
   }
@@ -1149,43 +1224,76 @@ async function processFiles(files){
 
 /* ---------- auto-load: fetches realisasi.pdf, ikpa.pdf and detail.pdf from this same folder ---------- */
 const AUTO_LOAD_NAMES = ["realisasi.pdf", "ikpa.pdf", "detail.pdf"];
+// Status tiap langkah di layar loading (hanya terlihat saat pemuatan pertama).
+const LD_STATES = {
+  wait:  { ico:"wait", text:"Menunggu",         weight:0 },
+  fetch: { ico:"load", text:"Mengunduh…",       weight:0.15 },
+  parse: { ico:"load", text:"Membaca…",         weight:0.55 },
+  ok:    { ico:"ok",   text:"Siap",             weight:1, cls:"is-ok" },
+  miss:  { ico:"miss", text:"Tidak tersedia",   weight:1 },
+  fail:  { ico:"fail", text:"Format tidak dikenali", weight:1, cls:"is-fail" },
+};
+const ldProgress = {};
+function setStep(name, state){
+  const li = document.querySelector(`#ldSteps li[data-step="${name}"]`);
+  const st = LD_STATES[state];
+  if(!li || !st) return;
+  ldProgress[name] = st.weight;
+  li.className = st.cls || "";
+  li.querySelector(".ld-ico").className = "ld-ico " + st.ico;
+  li.querySelector(".ld-state").textContent = st.text;
+  const total = AUTO_LOAD_NAMES.reduce((sum,n)=> sum + (ldProgress[n]||0), 0) / AUTO_LOAD_NAMES.length;
+  const bar = document.getElementById("ldBar");
+  if(bar) bar.style.width = Math.max(6, Math.round(total*92)) + "%";
+}
+function setLoadError(title, sub){
+  document.getElementById("autoLoadTitle").textContent = title;
+  document.getElementById("autoLoadSub").textContent = sub;
+  document.getElementById("autoLoadStatus").classList.add("is-error");
+  document.getElementById("ldRetry").hidden = false;
+}
 async function tryAutoLoad(isRefresh=false){
   const autoEl = document.getElementById("autoLoadStatus");
-  const autoTitle = document.getElementById("autoLoadTitle");
   const autoSub = document.getElementById("autoLoadSub");
   try{
+    if(!isRefresh) autoSub.textContent = "Memuat riwayat harian…";
     await loadHistory();
+    if(!isRefresh) autoSub.textContent = "Mengunduh berkas PDF dari server…";
     const fetched = [];
     for(const name of AUTO_LOAD_NAMES){
+      if(!isRefresh) setStep(name, "fetch");
       try{
         const res = await fetch(name, {cache:"no-store"});
         if(res.ok){
           const blob = await res.blob();
           blob.name = name;
           fetched.push(blob);
-        }
-      }catch(e){ /* ignore individual fetch failures */ }
+          if(!isRefresh) setStep(name, "parse");
+        } else if(!isRefresh) setStep(name, "miss");
+      }catch(e){ /* ignore individual fetch failures */ if(!isRefresh) setStep(name, "miss"); }
     }
     if(fetched.length===0){
       if(!isRefresh){
-        autoTitle.textContent = "Data tidak ditemukan";
-        autoSub.textContent = `File "realisasi.pdf" dan/atau "ikpa.pdf" belum tersedia di server. Coba muat ulang beberapa saat lagi.`;
+        setLoadError("Data tidak ditemukan", `File "realisasi.pdf" dan/atau "ikpa.pdf" belum tersedia di server. Coba muat ulang beberapa saat lagi.`);
       }
       return;
     }
-    const {gotRealisasi, gotIkpa, gotAkun} = await processFiles(fetched);
+    if(!isRefresh) autoSub.textContent = "Membaca dan menyusun data…";
+    const done = new Set();
+    const {gotRealisasi, gotIkpa, gotAkun} = await processFiles(fetched, isRefresh ? null : (name, kind)=>{
+      done.add(name); setStep(name, kind ? "ok" : "fail");
+    });
+    if(!isRefresh) fetched.forEach(f=>{ if(!done.has(f.name)) setStep(f.name, "fail"); });
     if(gotRealisasi || gotIkpa || gotAkun){
       autoEl.style.display="none";
       render();
       showToast(isRefresh ? "Data terbaru berhasil dimuat" : "Dashboard siap — data berhasil dimuat");
     } else if(!isRefresh){
-      autoTitle.textContent = "Data ditemukan tapi formatnya tidak dikenali";
-      autoSub.textContent = "File realisasi.pdf/ikpa.pdf/detail.pdf ditemukan tapi tidak bisa dibaca. Coba muat ulang, atau periksa apakah file sumbernya sudah benar.";
+      setLoadError("Data ditemukan tapi formatnya tidak dikenali", "File realisasi.pdf/ikpa.pdf/detail.pdf ditemukan tapi tidak bisa dibaca. Coba muat ulang, atau periksa apakah file sumbernya sudah benar.");
     }
   }catch(err){
     if(!isRefresh){
-      autoTitle.textContent = "Gagal memuat data";
-      autoSub.textContent = "Terjadi kesalahan saat mengambil data. Coba muat ulang halaman.";
+      setLoadError("Gagal memuat data", "Terjadi kesalahan saat mengambil data. Coba muat ulang halaman.");
     }
   }
 }
@@ -1552,6 +1660,86 @@ function attnLevel(pct, sisa, pagu, akunKode){
   return pct < target ? 2 : 0;
 }
 
+/* ---------- unduh PDF rincian per sub komponen (mengikuti pencarian / filter yang sedang aktif) ---------- */
+function downloadAkunSubPdf(){
+  const st = akunExportState;
+  if(!st || st.groups.length===0){ showToast("Tidak ada data untuk diunduh"); return; }
+  const JsPDF = window.jspdf && window.jspdf.jsPDF;
+  if(!JsPDF){ showToast("Pustaka PDF belum termuat. Periksa koneksi internet lalu coba lagi."); return; }
+  const doc = new JsPDF({ orientation:"landscape", unit:"pt", format:"a4" });
+  if(typeof doc.autoTable !== "function"){ showToast("Pustaka tabel PDF belum termuat. Coba muat ulang halaman."); return; }
+
+  const pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+  const M = 36;
+  const rp = (n)=> Math.round(n).toLocaleString("id-ID");
+  const nRows = st.groups.reduce((sum,g)=> sum + g.rows.length, 0);
+
+  // Judul + keterangan filter
+  let y = 40;
+  doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(30,30,30);
+  doc.text("Rincian per Sub Komponen - FA Detail", M, y); y += 18;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(80,80,80);
+  const head1 = [akunData.satkerNama, akunData.printedDate ? `FA Detail per ${akunData.printedDate}` : ""].filter(Boolean).join("  |  ");
+  if(head1){ doc.text(head1, M, y); y += 13; }
+  const tw = currentTriwulan();
+  const filters = [];
+  if(st.q) filters.push(`Pencarian: "${st.q}"`);
+  if(st.attnOnly) filters.push(`Hanya baris di bawah target realisasi${tw ? " triwulan "+["I","II","III","IV"][tw-1] : ""}`);
+  doc.text((filters.length ? "Filter: "+filters.join("; ") : "Filter: semua data (tanpa filter)") +
+           `  |  ${st.groups.length} dari ${st.totalGroups} sub komponen, ${nRows} baris`, M, y); y += 8;
+
+  const accents = [[224,181,99],[79,176,138],[224,153,77],[226,104,90],[127,166,224]];
+  st.groups.forEach((g, gi)=>{
+    if(y > pageH - 120){ doc.addPage(); y = 40; } else y += 8;
+    const acc = accents[gi % accents.length];
+    const body = g.rows.map(r=>{
+      const isAkun = r.kind==="akun";
+      const red = r.flag ? { textColor:[200,45,35], fontStyle:"bold" } : {};
+      return [
+        { content:r.text, styles:{ fontStyle:isAkun?"bold":"normal", cellPadding:{ top:3, bottom:3, left:isAkun?5:20, right:4 } } },
+        rp(r.pagu), rp(r.real),
+        { content:rp(r.sisa), styles:red },
+        { content:r.pct.toFixed(2)+"%", styles:r.flag ? red : {} },
+      ].map(c=> (typeof c==="string" ? { content:c } : c)).map((c,ci)=> isAkun ? { ...c, styles:{ fillColor:[243,243,236], fontStyle:"bold", ...(c.styles||{}) } } : c);
+    });
+    doc.autoTable({
+      startY: y,
+      margin: { top:40, left:M, right:M, bottom:36 },
+      showHead: "everyPage",
+      rowPageBreak: "avoid",
+      theme: "grid",
+      styles: { font:"helvetica", fontSize:8, cellPadding:3, lineColor:[225,225,220], lineWidth:0.4, textColor:[30,30,30], overflow:"linebreak" },
+      head: [
+        [{ content:`${g.label}\nPagu Rp ${rp(g.pagu)}  |  Realisasi Rp ${rp(g.real)}  |  ${g.pct.toFixed(2)}%${g.below ? `  |  ${g.below} baris di bawah target` : ""}`,
+           colSpan:5, styles:{ halign:"left", fillColor:acc, textColor:[25,25,25], fontStyle:"bold", fontSize:9, cellPadding:5 } }],
+        ["Uraian", "Pagu (Rp)", "Realisasi (Rp)", "Sisa (Rp)", "%"],
+      ],
+      headStyles: { fillColor:[60,66,62], textColor:255, fontStyle:"bold", fontSize:8 },
+      columnStyles: { 0:{ cellWidth:"auto" }, 1:{ halign:"right", cellWidth:90 }, 2:{ halign:"right", cellWidth:90 }, 3:{ halign:"right", cellWidth:90 }, 4:{ halign:"right", cellWidth:48 } },
+      didParseCell: (d)=>{
+        // baris judul grup rata kiri; label kolom angka pada header rata kanan
+        if(d.section==="head" && d.row.index===1 && d.column.index>0) d.cell.styles.halign = "right";
+      },
+      body,
+    });
+    y = doc.lastAutoTable.finalY;
+  });
+
+  // Nomor halaman
+  const total = doc.internal.getNumberOfPages();
+  for(let i=1;i<=total;i++){
+    doc.setPage(i);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(120,120,120);
+    doc.text(`Halaman ${i} dari ${total}`, pageW - M, pageH - 18, { align:"right" });
+    doc.text("Dasbor Realisasi Anggaran dan IKPA - BBPPKS Makassar", M, pageH - 18);
+  }
+
+  const iso = idDateToIso(akunData.printedDate) || "";
+  const filtered = st.q || st.attnOnly;
+  doc.save(`FA-Detail_Rincian-Sub-Komponen${iso?"_"+iso:""}${filtered?"_hasil-filter":""}.pdf`);
+  showToast("PDF berhasil dibuat");
+}
+
 function renderAkunSubView(){
   const subTableCard=document.getElementById("akunSubTableCard");
   if(!akunData || !akunData.subRows || akunData.subRows.length===0){
@@ -1579,7 +1767,7 @@ function renderAkunSubView(){
   searchInput.oninput=(e)=>{ akunSubSearch=e.target.value; renderAkunSubView(); };
   const q = akunSubSearch.trim().toLowerCase();
 
-  const groupBlocks=[]; const exportRows=[]; let accentIdx=0;
+  const groupBlocks=[]; const exportGroups=[]; let accentIdx=0;
   let totKritis=0, totGroupsFlagged=0;
   groupLabels.forEach(groupLabel=>{
     const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
@@ -1617,7 +1805,7 @@ function renderAkunSubView(){
           <td class="num sisa-cell">${formatCompact(akun.sisa)}</td>
           <td class="num"${items.length===0?` style="color:${attnPctColor(akun.pct, akun.kode)}"`:""}>${akun.pct.toFixed(2)}%</td>
         </tr>`);
-      groupExportRows.push([`${akun.kode} — ${akun.uraian}`, akun.pagu, akun.realisasi, akun.sisa, akun.pct.toFixed(2)]);
+      groupExportRows.push({ kind:"akun", text:`${akun.kode} - ${akun.uraian}`, pagu:akun.pagu, real:akun.realisasi, sisa:akun.sisa, pct:akun.pct, flag:akunLvl>0 });
 
       itemsFiltered.forEach(it=>{
         const itLvl = attnLevel(it.pct, it.sisa, it.pagu, it.akunKode);
@@ -1629,7 +1817,7 @@ function renderAkunSubView(){
             <td class="num sisa-cell">${formatCompact(it.sisa)}</td>
             <td class="num" style="color:${attnPctColor(it.pct, it.akunKode)}">${it.pct.toFixed(2)}%</td>
           </tr>`);
-        groupExportRows.push([`    ${it.itemKode}. ${it.uraian}`, it.pagu, it.realisasi, it.sisa, it.pct.toFixed(2)]);
+        groupExportRows.push({ kind:"item", text:`${it.itemKode}. ${it.uraian}`, pagu:it.pagu, real:it.realisasi, sisa:it.sisa, pct:it.pct, flag:itLvl>0 });
       });
     });
     if(groupBodyRows.length===0) return;
@@ -1657,9 +1845,17 @@ function renderAkunSubView(){
           </table>
         </div>
       </div>`);
-    exportRows.push([groupLabel, "", "", "", ""]);
-    exportRows.push(...groupExportRows);
+    exportGroups.push({ label:groupLabel, pagu:gPagu, real:gReal, pct:gPct, below:gKritis, rows:groupExportRows });
   });
+  akunExportState = { groups:exportGroups, q:akunSubSearch.trim(), attnOnly:akunAttnOnly, totalGroups:groupLabels.length };
+  const pdfBtn = document.getElementById("akunSubPdfBtn");
+  if(pdfBtn){
+    const filtered = !!akunSubSearch.trim() || akunAttnOnly;
+    document.getElementById("akunSubPdfLabel").textContent = filtered ? "Unduh PDF (hasil filter)" : "Unduh PDF";
+    pdfBtn.disabled = exportGroups.length===0;
+    pdfBtn.style.opacity = exportGroups.length===0 ? ".5" : "1";
+    pdfBtn.onclick = downloadAkunSubPdf;
+  }
 
   const container=document.getElementById("akunSubGroups");
   container.innerHTML = groupBlocks.length>0 ? groupBlocks.join("")
