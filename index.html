@@ -1897,7 +1897,7 @@ function renderAkunSubView(){
         <div class="subk-group-head">
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
-            ${akunAttnOnly ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} di bawah target</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
+            ${(akunAttnOnly || q) ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} di bawah target</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
             <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · ${gPct.toFixed(2)}%</span>
           </div>
         </div>
