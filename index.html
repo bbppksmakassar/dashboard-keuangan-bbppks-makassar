@@ -544,7 +544,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
               </div>
-                <button type="button" class="dl-btn" id="akunSubPdfBtn" style="color:#E0B563; border-color:#E0B56355;" title="Unduh rincian sub komponen sebagai PDF"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span id="akunSubPdfLabel">Unduh PDF</span></button>
+                <button type="button" class="dl-btn" id="akunSubPdfBtn" style="color:#E0B563; border-color:#E0B56355;" title="Unduh rincian sub komponen sebagai PDF"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span id="akunSubPdfLabel">Unduh PDF Filter</span></button>
               </div>
             </div>
             <div id="akunAttnSummary" class="attn-summary"></div>
@@ -1897,7 +1897,7 @@ function renderAkunSubView(){
         <div class="subk-group-head">
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
-            ${gKritis?`<span class="attn-pill k">${gKritis} di bawah target</span>`:`<span class="attn-pill ok">Sesuai target</span>`}
+            ${akunAttnOnly ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} di bawah target</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
             <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · ${gPct.toFixed(2)}%</span>
           </div>
         </div>
@@ -1918,8 +1918,6 @@ function renderAkunSubView(){
   akunExportState = { groups:exportGroups, q:akunSubSearch.trim(), attnOnly:akunAttnOnly, totalGroups:groupLabels.length };
   const pdfBtn = document.getElementById("akunSubPdfBtn");
   if(pdfBtn){
-    const filtered = !!akunSubSearch.trim() || akunAttnOnly;
-    document.getElementById("akunSubPdfLabel").textContent = filtered ? "Unduh PDF (hasil filter)" : "Unduh PDF";
     pdfBtn.disabled = exportGroups.length===0;
     pdfBtn.style.opacity = exportGroups.length===0 ? ".5" : "1";
     pdfBtn.onclick = downloadAkunSubPdf;
