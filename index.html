@@ -547,7 +547,7 @@
               <div class="attn-bar">
                 <button type="button" class="attn-chip all active" id="akunAttnAll">Semua</button>
                 <button type="button" class="attn-chip saldo" id="akunSaldoOnly">Masih bersaldo</button>
-                <button type="button" class="attn-chip" id="akunAttnOnly">Perlu perhatian</button>
+                <button type="button" class="attn-chip" id="akunAttnOnly">Di bawah target</button>
                 <div class="search-box">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
@@ -1847,7 +1847,7 @@ function downloadAkunSubPdf(){
   const filters = [];
   if(st.q) filters.push(`Pencarian: "${st.q}"`);
   if(st.saldoOnly) filters.push("Hanya item yang masih bersaldo (sisa tidak nol, termasuk negatif)");
-  if(st.attnOnly) filters.push(`Hanya baris yang perlu perhatian (di bawah target realisasi${tw ? " triwulan "+["I","II","III","IV"][tw-1] : ""} atau sisa negatif)`);
+  if(st.attnOnly) filters.push(`Hanya baris di bawah target (target realisasi${tw ? " triwulan "+["I","II","III","IV"][tw-1] : ""} atau sisa negatif)`);
   doc.text((filters.length ? "Filter: "+filters.join("; ") : "Filter: semua data (tanpa filter)") +
            `  |  ${st.groups.length} dari ${st.totalGroups} sub komponen, ${nRows} baris`, M, y); y += 8;
 
@@ -1997,7 +1997,7 @@ function renderAkunSubView(){
         <div class="subk-group-head">
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
-            ${(akunAttnOnly || akunSaldoOnly || q) ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} perlu perhatian</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
+            ${(akunAttnOnly || akunSaldoOnly || q) ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} di bawah target</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
             <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · ${gPct.toFixed(2)}%</span>
           </div>
         </div>
@@ -2035,15 +2035,15 @@ function renderAkunSubView(){
     : "Triwulan tidak dapat ditentukan dari tanggal laporan, sehingga peringatan tidak aktif.";
   sumEl.innerHTML = totKritis===0
     ? `<span class="attn-pill ok">Semua item sesuai target</span><span>${targetInfo}</span>`
-    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen punya item perlu perhatian:</span>
-       <span class="attn-pill k">${totKritis} item perlu perhatian</span><span>${targetInfo}</span>`;
+    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen punya item di bawah target:</span>
+       <span class="attn-pill k">${totKritis} item di bawah target</span><span>${targetInfo}</span>`;
   const btnAll=document.getElementById("akunAttnAll"), btnOnly=document.getElementById("akunAttnOnly"), btnSaldo=document.getElementById("akunSaldoOnly");
   btnAll.classList.toggle("active", !akunAttnOnly && !akunSaldoOnly);
   btnOnly.classList.toggle("active", akunAttnOnly);
   btnSaldo.classList.toggle("active", akunSaldoOnly);
-  btnOnly.textContent = `Perlu perhatian (${totKritis})`;
+  btnOnly.textContent = `Di bawah target (${totKritis})`;
   btnSaldo.textContent = `Masih bersaldo (${totSaldo})`;
-  // "Perlu perhatian" dan "Masih bersaldo" bisa dinyalakan bersamaan; "Semua" mematikan keduanya.
+  // "Di bawah target" dan "Masih bersaldo" bisa dinyalakan bersamaan; "Semua" mematikan keduanya.
   btnAll.onclick=()=>{ akunAttnOnly=false; akunSaldoOnly=false; renderAkunSubView(); };
   btnOnly.onclick=()=>{ akunAttnOnly=!akunAttnOnly; if(akunAttnOnly) akunSaldoOnly=false; renderAkunSubView(); };
   btnSaldo.onclick=()=>{ akunSaldoOnly=!akunSaldoOnly; if(akunSaldoOnly) akunAttnOnly=false; renderAkunSubView(); };
