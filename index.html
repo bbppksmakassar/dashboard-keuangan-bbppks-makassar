@@ -533,6 +533,12 @@
             </div>
             <p class="note" id="akunNote"></p>
             <div class="mini-grid" id="akunMini"></div>
+            <div id="akunChartWrap">
+              <div class="chart-card-head">
+                <span style="font-size:12px; font-weight:500; color:var(--sub);">Pagu vs Realisasi per jenis belanja</span>
+              </div>
+              <div class="chart-wrap"><canvas id="akunChart"></canvas></div>
+            </div>
           </div>
 
           <div class="card" id="akunSubTableCard" style="display:none;">
@@ -1236,7 +1242,7 @@ let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
 let akunData=null, akunSubSearch="", akunAttnOnly=false, akunSaldoOnly=false, akunExportState=null;
-let highlightChartInstance=null, ikpaChartInstance=null;
+let highlightChartInstance=null, ikpaChartInstance=null, akunChartInstance=null;
 let activeView="realisasi";
 
 /* ---------- DOM refs ---------- */
@@ -1517,7 +1523,7 @@ function renderHighlight(table){
   if(data.length===0){ wrap.style.display="none"; return; }
   wrap.style.display="block";
   const canvas=document.getElementById("highlightChart");
-  canvas.parentElement.style.height = Math.max(220, data.length*46)+"px";
+  canvas.parentElement.style.height = Math.max(220, data.length*86)+"px";
   if(highlightChartInstance) highlightChartInstance.destroy();
   highlightChartInstance = new Chart(canvas, {
     type:"bar",
@@ -1528,14 +1534,14 @@ function renderHighlight(table){
           label:"Pagu",
           data: data.map(d=>d.Pagu),
           backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#232B26", "#3A433C"),
-          borderRadius:8, borderSkipped:false, barPercentage:0.62, categoryPercentage:0.8,
-          datalabels:{ display:false }
+          borderRadius:8, borderSkipped:false, barPercentage:0.8, categoryPercentage:0.8,
+          datalabels:{ display:true, anchor:"end", align:"end", offset:4, color:"#9AA6A0", font:{size:10.5, weight:"600"}, formatter:(v)=> "Rp "+formatCompact(v) }
         },
         {
           label:"Realisasi",
           data: data.map(d=>d.Realisasi),
           backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#E0B563", ORANGE),
-          borderRadius:8, borderSkipped:false, barPercentage:0.62, categoryPercentage:0.8,
+          borderRadius:8, borderSkipped:false, barPercentage:0.8, categoryPercentage:0.8,
           datalabels:{
             display:true, anchor:"end", align:"end", offset:4,
             color:"#F2C08C", font:{size:10.5, weight:"600"},
@@ -1545,13 +1551,16 @@ function renderHighlight(table){
       ]
     },
     options:{
+      interaction:{ mode:"index", intersect:false },
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
-      layout:{ padding:{right:56} },
+      layout:{ padding:{right:70} },
       animation:{ duration:700, easing:"easeOutQuart" },
       plugins:{
         legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#DCE3DE" } },
-        tooltip:{ callbacks:{ label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}` } }
+        tooltip:{ mode:"index", intersect:false, callbacks:{
+          label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}`,
+          footer:(items)=>{ const d=data[items[0].dataIndex]; const sisa=d.Pagu-d.Realisasi; const pct=d.Pagu?d.Realisasi/d.Pagu*100:0; return [`Sisa: ${formatFull(sisa)}`, `% Realisasi: ${pct.toFixed(2)}%`]; } } }
       },
       scales:{
         x:{ ticks:{ font:{size:11}, color:"#B7C1BB", callback:(v)=>formatCompact(v) }, grid:{ color:"#0D1210" }, border:{display:false} },
@@ -1722,6 +1731,56 @@ function renderAkunView(){
   animateNumberText(document.getElementById("akReal"), gt.realisasi, {format:rupiahFmt});
   animateNumberText(document.getElementById("akSisa"), gt.sisa, {format:rupiahFmt});
   animateRing("akRing", gt.pct, pctColor(gt.pct));
+  renderAkunChart();
+}
+
+const JENIS_BELANJA = {"51":"Belanja Pegawai","52":"Belanja Barang","53":"Belanja Modal","54":"Belanja Bunga","55":"Belanja Subsidi","56":"Belanja Hibah","57":"Belanja Bantuan Sosial","58":"Belanja Lain-lain"};
+function computeAkunBreakdown(){
+  const m={};
+  (akunData.rows||[]).forEach(r=>{
+    const k=String(r.kode).slice(0,2);
+    if(!m[k]) m[k]={name:JENIS_BELANJA[k]||("Akun "+k),Pagu:0,Realisasi:0,k};
+    m[k].Pagu+=r.pagu||0; m[k].Realisasi+=r.realisasi||0;
+  });
+  return Object.values(m).filter(d=>d.Pagu>0).sort((a,b)=>a.k.localeCompare(b.k));
+}
+function renderAkunChart(){
+  const wrap=document.getElementById("akunChartWrap");
+  const data=computeAkunBreakdown();
+  if(data.length===0){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  const canvas=document.getElementById("akunChart");
+  canvas.parentElement.style.height = Math.max(220, data.length*86+50)+"px";
+  if(akunChartInstance) akunChartInstance.destroy();
+  akunChartInstance = new Chart(canvas, {
+    type:"bar",
+    data:{ labels:data.map(d=>d.name), datasets:[
+      { label:"Pagu", data:data.map(d=>d.Pagu),
+        backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#232B26", "#3A433C"),
+        borderRadius:8, borderSkipped:false, barPercentage:0.8, categoryPercentage:0.8,
+        datalabels:{ display:true, anchor:"end", align:"end", offset:4, color:"#9AA6A0", font:{size:10.5, weight:"600"}, formatter:(v)=> "Rp "+formatCompact(v) } },
+      { label:"Realisasi", data:data.map(d=>d.Realisasi),
+        backgroundColor:(ctx)=>makeHGradient(ctx.chart.ctx, ctx.chart.chartArea, "#E0B563", ORANGE),
+        borderRadius:8, borderSkipped:false, barPercentage:0.8, categoryPercentage:0.8,
+        datalabels:{ display:true, anchor:"end", align:"end", offset:4, color:"#F2C08C", font:{size:10.5, weight:"600"}, formatter:(v)=> "Rp "+formatCompact(v) } }
+    ]},
+    options:{
+      interaction:{ mode:"index", intersect:false },
+      indexAxis:"y", responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{right:70} },
+      animation:{ duration:700, easing:"easeOutQuart" },
+      plugins:{
+        legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#DCE3DE" } },
+        tooltip:{ mode:"index", intersect:false, callbacks:{
+          label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}`,
+          footer:(items)=>{ const d=data[items[0].dataIndex]; const sisa=d.Pagu-d.Realisasi; const pct=d.Pagu?d.Realisasi/d.Pagu*100:0; return [`Sisa: ${formatFull(sisa)}`, `% Realisasi: ${pct.toFixed(2)}%`]; } } }
+      },
+      scales:{
+        x:{ ticks:{ font:{size:11}, color:"#B7C1BB", callback:(v)=>formatCompact(v) }, grid:{ color:"#0D1210" }, border:{display:false} },
+        y:{ ticks:{ font:{size:11.5}, color:"#DCE3DE" }, grid:{ display:false }, border:{display:false} }
+      }
+    }
+  });
 }
 
 /* ---------- FA Detail: peringatan sisa anggaran berdasarkan target realisasi per triwulan ---------- */
