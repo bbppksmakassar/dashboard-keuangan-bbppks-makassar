@@ -185,6 +185,7 @@
   .attn-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .attn-chip{ font:inherit; font-size:12px; font-weight:600; padding:5px 12px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--sub); cursor:pointer; }
   .attn-chip.active{ background:rgba(226,104,90,.16); border-color:rgba(226,104,90,.5); color:var(--red); }
+  .attn-chip.saldo.active{ background:rgba(79,176,138,.16); border-color:rgba(79,176,138,.5); color:var(--teal); }
   .attn-chip.all.active{ background:var(--chip); border-color:var(--border); color:var(--ink); }
   .attn-summary{ display:flex; gap:10px; flex-wrap:wrap; margin:0 0 18px; font-size:12.5px; color:var(--sub); align-items:center; }
   .attn-pill{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:99px; white-space:nowrap; }
@@ -540,6 +541,7 @@
               <div class="attn-bar">
                 <button type="button" class="attn-chip all active" id="akunAttnAll">Semua</button>
                 <button type="button" class="attn-chip" id="akunAttnOnly">Perlu perhatian</button>
+                <button type="button" class="attn-chip saldo" id="akunSaldoOnly">Masih bersaldo</button>
                 <div class="search-box">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
@@ -1080,7 +1082,10 @@ async function parseAkunDetailPdf(file){
   const pages = await extractPdfPages(file);
   if(pages.length===0) throw new Error("PDF kosong");
 
-  const isNumTok = (t)=> /^[\d,]+$/.test(t) || /^\d+([.,]\d+)?\s*%$/.test(t);
+  // Angka boleh negatif (sisa anggaran negatif bila realisasi melebihi pagu), mis. "-8,059,800".
+  const isNumTok = (t)=> /^-?\d[\d,]*$/.test(t) || /^-?\d+([.,]\d+)?\s*%$/.test(t);
+  // Token berbentuk angka apa pun (termasuk persen tanpa tanda %, mis. "100.00"); dipakai agar teks uraian tidak tercampur angka.
+  const numLike = (t)=> /^-?[\d,]+(\.\d+)?\s*%?$/.test(t.trim());
 
   // Column axis is Y here; cluster the RIGHT edge (y + width) of value tokens, ignoring the
   // Uraian/label area (y<=172) so leading numeric codes like "521211" don't pollute the columns.
@@ -1123,10 +1128,42 @@ async function parseAkunDetailPdf(file){
       if(!line){ line={x:it.x, items:[]}; lines.push(line); }
       line.items.push(it);
     });
+    // Uraian akun/item yang panjang terbungkus ke beberapa baris, dan angkanya bisa jatuh pada baris
+    // yang berbeda dari kode (nilai di-rata-tengahkan). Gabungkan baris-baris lanjutan itu ke baris
+    // kode akun/item di atasnya supaya tidak ada item yang hilang. Baris lanjutan dikenali dari
+    // posisi teksnya yang sejajar uraian item (y sekitar 90-110) dan jaraknya yang dekat.
+    const NUM_PER_ROW = 7; // 6 kolom angka + kolom %
+    const countNums = (l)=> l.items.filter(it=>it.y>172 && numLike(it.text)).length;
+    const joinText = (l)=> l.items.filter(it=> it.y<=172 || !numLike(it.text)).sort((a,b)=>a.y-b.y).map(it=>it.text).join(" ");
+    const mergedLines=[]; let anchor=null, lastX=0;
     lines.forEach(line=>{
+      const uItems = line.items.filter(it=>it.y<=172).sort((a,b)=>a.y-b.y);
+      const t = uItems.map(it=>it.text).join(" ").replace(/\s+/g," ").trim();
+      if(/^\d{6}\.?$/.test(t.split(" ")[0])){
+        anchor = { x:line.x, items:[...line.items], parts:[joinText(line)] };
+        lastX = line.x; mergedLines.push(anchor); return;
+      }
+      if(anchor && line.x-lastX<=12){
+        const ty = uItems.length ? uItems[0].y : null;
+        const nv = countNums(anchor), lv = countNums(line);
+        const isContinuationText = ty!==null && ty>=88 && ty<=110;
+        let attach=false;
+        if(!t && lv>0) attach = nv<NUM_PER_ROW;                        // baris hanya berisi angka
+        else if(t && isContinuationText && lv===0) attach = true;       // lanjutan teks uraian
+        else if(t && isContinuationText && lv>0) attach = nv>0 && nv<NUM_PER_ROW; // lanjutan teks + sisa angka
+        if(attach){
+          anchor.items.push(...line.items); anchor.parts.push(joinText(line));
+          lastX = line.x; return;
+        }
+      }
+      anchor=null; mergedLines.push(line);
+    });
+    mergedLines.forEach(l=>{ if(l.parts) l.text = l.parts.join(" ").replace(/\s+/g," ").trim(); });
+
+    mergedLines.forEach(line=>{
       const uraianItems = line.items.filter(it=>it.y<=172).sort((a,b)=>a.y-b.y);
-      if(uraianItems.length===0) return;
-      const uraianText = uraianItems.map(it=>it.text).join(" ").replace(/\s+/g," ").trim();
+      if(uraianItems.length===0 && !line.text) return;
+      const uraianText = line.text || uraianItems.map(it=>it.text).join(" ").replace(/\s+/g," ").trim();
       const firstToken = uraianText.split(" ")[0];
 
       const valItems = line.items.filter(it=>it.y>172 && isNumTok(it.text.trim()));
@@ -1198,7 +1235,7 @@ async function parseAkunDetailPdf(file){
 let table=null, fileName="";
 let search="", sortDir="desc", selectedGroup=null;
 let ikpaSearch="", ikpaSortDir="desc";
-let akunData=null, akunSubSearch="", akunAttnOnly=false, akunExportState=null;
+let akunData=null, akunSubSearch="", akunAttnOnly=false, akunSaldoOnly=false, akunExportState=null;
 let highlightChartInstance=null, ikpaChartInstance=null;
 let activeView="realisasi";
 
@@ -1721,8 +1758,10 @@ function attnPctColor(pct, akunKode){
   if(target==null) return GREY_C;
   return pct >= target ? TEAL : RED;
 }
-// 2 = di bawah target triwulan berjalan, 0 = normal / tanpa standar.
+// 2 = perlu perhatian: sisa negatif (realisasi melebihi pagu), atau realisasi di bawah target triwulan
+// berjalan dan masih ada sisa. 0 = normal / tanpa standar.
 function attnLevel(pct, sisa, pagu, akunKode){
+  if(sisa<0) return 2;
   const target = attnTarget(akunKode);
   if(target==null || !(pagu>0) || sisa<=0) return 0;
   return pct < target ? 2 : 0;
@@ -1752,7 +1791,8 @@ function downloadAkunSubPdf(){
   const tw = currentTriwulan();
   const filters = [];
   if(st.q) filters.push(`Pencarian: "${st.q}"`);
-  if(st.attnOnly) filters.push(`Hanya baris di bawah target realisasi${tw ? " triwulan "+["I","II","III","IV"][tw-1] : ""}`);
+  if(st.saldoOnly) filters.push("Hanya item yang masih bersaldo (sisa tidak nol, termasuk negatif)");
+  if(st.attnOnly) filters.push(`Hanya baris yang perlu perhatian (di bawah target realisasi${tw ? " triwulan "+["I","II","III","IV"][tw-1] : ""} atau sisa negatif)`);
   doc.text((filters.length ? "Filter: "+filters.join("; ") : "Filter: semua data (tanpa filter)") +
            `  |  ${st.groups.length} dari ${st.totalGroups} sub komponen, ${nRows} baris`, M, y); y += 8;
 
@@ -1803,7 +1843,7 @@ function downloadAkunSubPdf(){
   }
 
   const iso = idDateToIso(akunData.printedDate) || "";
-  const filtered = st.q || st.attnOnly;
+  const filtered = st.q || st.attnOnly || st.saldoOnly;
   doc.save(`FA-Detail_Rincian-Sub-Komponen${iso?"_"+iso:""}${filtered?"_hasil-filter":""}.pdf`);
   showToast("PDF berhasil dibuat");
 }
@@ -1836,7 +1876,7 @@ function renderAkunSubView(){
   const q = akunSubSearch.trim().toLowerCase();
 
   const groupBlocks=[]; const exportGroups=[]; let accentIdx=0;
-  let totKritis=0, totGroupsFlagged=0;
+  let totKritis=0, totGroupsFlagged=0, totSaldo=0;
   groupLabels.forEach(groupLabel=>{
     const akunRowsInGroup = akunData.rows.filter(r=>r.groupLabel===groupLabel);
     const subRowsInGroup = akunData.subRows.filter(r=>r.groupLabel===groupLabel);
@@ -1846,7 +1886,7 @@ function renderAkunSubView(){
       gPagu+=a.pagu; gReal+=a.realisasi; gSisa+=a.sisa;
       const its = subRowsInGroup.filter(s=>s.akunKode===a.kode);
       const units = its.length ? its : [a];
-      units.forEach(u=>{ if(attnLevel(u.pct,u.sisa,u.pagu,u.akunKode||u.kode)===2) gKritis++; });
+      units.forEach(u=>{ if(attnLevel(u.pct,u.sisa,u.pagu,u.akunKode||u.kode)===2) gKritis++; if(u.sisa!==0) totSaldo++; });
     });
     const gPct = gPagu>0 ? gReal/gPagu*100 : 0;
     totKritis+=gKritis; if(gKritis>0) totGroupsFlagged++;
@@ -1863,6 +1903,11 @@ function renderAkunSubView(){
       if(akunAttnOnly){
         itemsFiltered = itemsFiltered.filter(it=> attnLevel(it.pct,it.sisa,it.pagu,it.akunKode)>0);
         if(akunLvl===0 && itemsFiltered.length===0) return;
+      }
+      // Filter "Masih bersaldo": item (atau akun tanpa item) yang sisanya tidak nol, termasuk sisa negatif.
+      if(akunSaldoOnly){
+        itemsFiltered = itemsFiltered.filter(it=> it.sisa!==0);
+        if(items.length===0 ? akun.sisa===0 : itemsFiltered.length===0) return;
       }
 
       groupBodyRows.push(`
@@ -1897,7 +1942,7 @@ function renderAkunSubView(){
         <div class="subk-group-head">
           <div class="subk-group-title">${groupLabel}</div>
           <div class="subk-group-meta">
-            ${(akunAttnOnly || q) ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} di bawah target</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
+            ${(akunAttnOnly || akunSaldoOnly || q) ? "" : (gKritis ? `<span class="attn-pill k">${gKritis} perlu perhatian</span>` : `<span class="attn-pill ok">Sesuai target</span>`)}
             <span class="attn-pill m">${formatCompact(gReal)} / ${formatCompact(gPagu)} · ${gPct.toFixed(2)}%</span>
           </div>
         </div>
@@ -1915,7 +1960,7 @@ function renderAkunSubView(){
       </div>`);
     exportGroups.push({ label:groupLabel, pagu:gPagu, real:gReal, pct:gPct, below:gKritis, rows:groupExportRows });
   });
-  akunExportState = { groups:exportGroups, q:akunSubSearch.trim(), attnOnly:akunAttnOnly, totalGroups:groupLabels.length };
+  akunExportState = { groups:exportGroups, q:akunSubSearch.trim(), attnOnly:akunAttnOnly, saldoOnly:akunSaldoOnly, totalGroups:groupLabels.length };
   const pdfBtn = document.getElementById("akunSubPdfBtn");
   if(pdfBtn){
     pdfBtn.disabled = exportGroups.length===0;
@@ -1925,7 +1970,7 @@ function renderAkunSubView(){
 
   const container=document.getElementById("akunSubGroups");
   container.innerHTML = groupBlocks.length>0 ? groupBlocks.join("")
-    : `<p class="empty-row">${akunAttnOnly && !q ? "Tidak ada item yang perlu perhatian." : "Tidak ada data yang cocok."}</p>`;
+    : `<p class="empty-row">${(akunAttnOnly || akunSaldoOnly) && !q ? "Tidak ada item yang cocok dengan filter." : "Tidak ada data yang cocok."}</p>`;
 
   // Ringkasan + tombol filter
   const sumEl=document.getElementById("akunAttnSummary");
@@ -1935,14 +1980,18 @@ function renderAkunSubView(){
     : "Triwulan tidak dapat ditentukan dari tanggal laporan, sehingga peringatan tidak aktif.";
   sumEl.innerHTML = totKritis===0
     ? `<span class="attn-pill ok">Semua item sesuai target</span><span>${targetInfo}</span>`
-    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen punya item di bawah target:</span>
-       <span class="attn-pill k">${totKritis} item di bawah target</span><span>${targetInfo}</span>`;
-  const btnAll=document.getElementById("akunAttnAll"), btnOnly=document.getElementById("akunAttnOnly");
-  btnAll.classList.toggle("active", !akunAttnOnly);
+    : `<span><strong style="color:var(--ink)">${totGroupsFlagged}</strong> dari ${groupLabels.length} sub komponen punya item perlu perhatian:</span>
+       <span class="attn-pill k">${totKritis} item perlu perhatian</span><span>${targetInfo}</span>`;
+  const btnAll=document.getElementById("akunAttnAll"), btnOnly=document.getElementById("akunAttnOnly"), btnSaldo=document.getElementById("akunSaldoOnly");
+  btnAll.classList.toggle("active", !akunAttnOnly && !akunSaldoOnly);
   btnOnly.classList.toggle("active", akunAttnOnly);
+  btnSaldo.classList.toggle("active", akunSaldoOnly);
   btnOnly.textContent = `Perlu perhatian (${totKritis})`;
-  btnAll.onclick=()=>{ akunAttnOnly=false; renderAkunSubView(); };
-  btnOnly.onclick=()=>{ akunAttnOnly=true; renderAkunSubView(); };
+  btnSaldo.textContent = `Masih bersaldo (${totSaldo})`;
+  // "Perlu perhatian" dan "Masih bersaldo" bisa dinyalakan bersamaan; "Semua" mematikan keduanya.
+  btnAll.onclick=()=>{ akunAttnOnly=false; akunSaldoOnly=false; renderAkunSubView(); };
+  btnOnly.onclick=()=>{ akunAttnOnly=!akunAttnOnly; renderAkunSubView(); };
+  btnSaldo.onclick=()=>{ akunSaldoOnly=!akunSaldoOnly; renderAkunSubView(); };
 }
 
 function renderTable(table, group){
