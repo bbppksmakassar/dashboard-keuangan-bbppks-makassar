@@ -546,8 +546,8 @@
               <div class="card-title">Rincian per Sub Komponen</div>
               <div class="attn-bar">
                 <button type="button" class="attn-chip all active" id="akunAttnAll">Semua</button>
-                <button type="button" class="attn-chip" id="akunAttnOnly">Perlu perhatian</button>
                 <button type="button" class="attn-chip saldo" id="akunSaldoOnly">Masih bersaldo</button>
+                <button type="button" class="attn-chip" id="akunAttnOnly">Perlu perhatian</button>
                 <div class="search-box">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A968F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 <input type="text" id="akunSubSearchInput" placeholder="Cari sub komponen / akun / item…" />
@@ -1558,9 +1558,7 @@ function renderHighlight(table){
       animation:{ duration:700, easing:"easeOutQuart" },
       plugins:{
         legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#DCE3DE" } },
-        tooltip:{ mode:"index", intersect:false, callbacks:{
-          label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}`,
-          footer:(items)=>{ const d=data[items[0].dataIndex]; const sisa=d.Pagu-d.Realisasi; const pct=d.Pagu?d.Realisasi/d.Pagu*100:0; return [`Sisa: ${formatFull(sisa)}`, `% Realisasi: ${pct.toFixed(2)}%`]; } } }
+        tooltip:{ mode:"index", intersect:false, filter:(item)=>item.datasetIndex===1, callbacks:{ label:(item)=>{ const d=data[item.dataIndex]; return `Sisa: ${formatFull(d.Pagu-d.Realisasi)}`; } } }
       },
       scales:{
         x:{ ticks:{ font:{size:11}, color:"#B7C1BB", callback:(v)=>formatCompact(v) }, grid:{ color:"#0D1210" }, border:{display:false} },
@@ -1771,9 +1769,7 @@ function renderAkunChart(){
       animation:{ duration:700, easing:"easeOutQuart" },
       plugins:{
         legend:{ position:"top", align:"end", labels:{ boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:"circle", font:{size:12}, color:"#DCE3DE" } },
-        tooltip:{ mode:"index", intersect:false, callbacks:{
-          label:(item)=> `${item.dataset.label}: ${formatFull(item.parsed.x)}`,
-          footer:(items)=>{ const d=data[items[0].dataIndex]; const sisa=d.Pagu-d.Realisasi; const pct=d.Pagu?d.Realisasi/d.Pagu*100:0; return [`Sisa: ${formatFull(sisa)}`, `% Realisasi: ${pct.toFixed(2)}%`]; } } }
+        tooltip:{ mode:"index", intersect:false, filter:(item)=>item.datasetIndex===1, callbacks:{ label:(item)=>{ const d=data[item.dataIndex]; return `Sisa: ${formatFull(d.Pagu-d.Realisasi)}`; } } }
       },
       scales:{
         x:{ ticks:{ font:{size:11}, color:"#B7C1BB", callback:(v)=>formatCompact(v) }, grid:{ color:"#0D1210" }, border:{display:false} },
@@ -2049,8 +2045,8 @@ function renderAkunSubView(){
   btnSaldo.textContent = `Masih bersaldo (${totSaldo})`;
   // "Perlu perhatian" dan "Masih bersaldo" bisa dinyalakan bersamaan; "Semua" mematikan keduanya.
   btnAll.onclick=()=>{ akunAttnOnly=false; akunSaldoOnly=false; renderAkunSubView(); };
-  btnOnly.onclick=()=>{ akunAttnOnly=!akunAttnOnly; renderAkunSubView(); };
-  btnSaldo.onclick=()=>{ akunSaldoOnly=!akunSaldoOnly; renderAkunSubView(); };
+  btnOnly.onclick=()=>{ akunAttnOnly=!akunAttnOnly; if(akunAttnOnly) akunSaldoOnly=false; renderAkunSubView(); };
+  btnSaldo.onclick=()=>{ akunSaldoOnly=!akunSaldoOnly; if(akunSaldoOnly) akunAttnOnly=false; renderAkunSubView(); };
 }
 
 function renderTable(table, group){
