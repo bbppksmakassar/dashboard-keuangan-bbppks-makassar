@@ -252,13 +252,13 @@
   /* ---- layar loading: satu halaman penuh, beranimasi ---- */
   html.is-loading, html.is-loading body{ overflow:hidden; }
   .ld-wrap{
-    position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+    position:fixed; top:0; right:0; bottom:0; left:0; z-index:1000; display:flex; align-items:center; justify-content:center;
     padding:24px; overflow:hidden; background:#0A0F0D; transition:opacity .6s ease, visibility .6s ease;
   }
   .ld-wrap.ld-hide{ opacity:0; visibility:hidden; }
   /* layar loading versi gelap: logo di tengah, gelombang sonar, partikel naik, dan batang pulsa */
   .ld-wrap{ background:#0A0F0D; color:#E8EEEA; }
-  .ld-bg{ position:absolute; inset:0; overflow:hidden; pointer-events:none;
+  .ld-bg{ position:absolute; top:0; right:0; bottom:0; left:0; overflow:hidden; pointer-events:none;
     background:radial-gradient(ellipse 55% 45% at 50% 44%, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 70%),
                radial-gradient(ellipse 80% 45% at 15% 105%, rgba(79,176,138,.22), transparent 70%),
                radial-gradient(ellipse 70% 45% at 90% 108%, rgba(224,153,77,.20), transparent 70%),
@@ -274,9 +274,9 @@
   .ld-ripple.p2{ animation-delay:1.2s; border-color:rgba(224,153,77,.5); } .ld-ripple.p3{ animation-delay:2.4s; border-color:rgba(127,166,224,.45); }
   @keyframes ldRipple{ 0%{ transform:scale(.55); opacity:.9; } 100%{ transform:scale(2.6); opacity:0; } }
   .ld-logo{ position:relative; width:112px; animation:ldBreath 2.8s ease-in-out infinite; filter:drop-shadow(0 0 1px rgba(255,255,255,.7)); }
-  .ld-logo::before{ content:""; position:absolute; inset:-34px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.26), rgba(255,255,255,.08) 55%, transparent 72%); z-index:-1; }
+  .ld-logo::before{ content:""; position:absolute; top:-34px; right:-34px; bottom:-34px; left:-34px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.26), rgba(255,255,255,.08) 55%, transparent 72%); z-index:-1; }
   .ld-logo img{ width:100%; height:auto; display:block; }
-  .ld-logo .shine{ position:absolute; inset:0; background:linear-gradient(105deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%);
+  .ld-logo .shine{ position:absolute; top:0; right:0; bottom:0; left:0; background:linear-gradient(105deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%);
     background-size:260% 100%; background-position:160% 0; animation:ldShineLogo 2.8s ease-in-out infinite;
     -webkit-mask-size:contain; mask-size:contain; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; }
   @keyframes ldShineLogo{ 0%,25%{ background-position:160% 0; } 75%,100%{ background-position:-60% 0; } }
@@ -294,7 +294,7 @@
     display:block; height:100%; width:6%; border-radius:99px; transition:width .5s ease; position:relative;
     background:linear-gradient(90deg,var(--teal),var(--orange));
   }
-  .ld-bar i::after{ content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); animation:ldShine 1.5s linear infinite; }
+  .ld-bar i::after{ content:""; position:absolute; top:0; right:0; bottom:0; left:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); animation:ldShine 1.5s linear infinite; }
   @keyframes ldShine{ from{ transform:translateX(-100%); } to{ transform:translateX(100%); } }
   .ld-steps{
     list-style:none; padding:10px; margin:22px auto 0; text-align:left; display:flex; flex-direction:column; gap:6px;
@@ -330,9 +330,11 @@
   .ld-wrap.is-error .ld-ripple, .ld-wrap.is-error .ld-eq b, .ld-wrap.is-error .ld-logo, .ld-wrap.is-error .ld-logo .shine, .ld-wrap.is-error .ld-bg i{ animation-play-state:paused; }
   .ld-wrap.is-error .ld-bar i{ background:var(--red); } .ld-wrap.is-error .ld-bar i::after{ display:none; }
   @media(max-width:560px){ .ld-hero{ width:130px; height:150px; } .ld-logo{ width:96px; } .ld-title{ font-size:18px; } }
+  /* Pengaturan "kurangi gerakan" (atau mode hemat daya) tidak mematikan animasi loading sepenuhnya:
+     indikator memuat tetap bergerak pelan; hanya partikel dan kilau logo yang dimatikan. */
   @media(prefers-reduced-motion:reduce){
-    .ld-bg i, .ld-ripple, .ld-logo, .ld-logo .shine, .ld-eq b, .ld-bar i::after, .ld-ico.load, .ld-title .dots span{ animation:none; }
-    .ld-eq b{ transform:scaleY(.7); }
+    .ld-bg i, .ld-logo .shine{ animation:none; display:none; }
+    .ld-ripple{ animation-duration:6s; } .ld-logo{ animation-duration:5s; } .ld-eq b{ animation-duration:2.2s; }
   }
   .skeleton-line{
     height:14px; border-radius:6px; margin:8px auto; background:linear-gradient(90deg,#1E2521 25%,#2A322D 37%,#1E2521 63%);
